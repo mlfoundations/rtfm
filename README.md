@@ -1,12 +1,12 @@
 `rtfm` is a Python library for research on tabular foundation models (RTFM).
 
-`rtfm` is the library used to train Tabula-8B, a model for tabular data prediction described in our paper,
+`rtfm` is the library used to train TabuLa-8B, a model for tabular data prediction described in our paper,
 "Large Scale Transfer Learning for Tabular Data via Language Modeling".
 You can also use `rtfm` to train your own tabular language models.
 
 `rtfm` has been used to train 7B- and 8B-parameter Llama 2 and Llama 3 language models,
 and supports advanced and efficient training methodologies such as fully sharded data parallel (FSDP),
-multinode traininng, and 16-bit training with `bf16`.
+multinode training, and 16-bit training with `bf16`.
 In the future, we plan to support additional base language models and larger scales;
 currently, support for larger Llama models exists but should be considered experimental.
 We do not currently support other (non-Llama) language models.
