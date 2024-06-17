@@ -1,3 +1,7 @@
+"""
+Fine-tune a language model for tabular data prediction.
+"""
+
 import dataclasses
 import os
 import random

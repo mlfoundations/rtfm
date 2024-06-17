@@ -1,7 +1,5 @@
 """
-Usage:
-
-
+Evaluate a language model for tabular data prediction.
 """
 import logging
 import os
