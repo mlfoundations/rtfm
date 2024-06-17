@@ -1,17 +1,23 @@
+name: Python Package using Conda
+
+on: [push]
+
 jobs:
-  conda-build:
-    name: Ex3 Linux
-    runs-on: "ubuntu-latest"
-    defaults:
-      run:
-        shell: bash -el {0}
+  build-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 5
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: conda-incubator/setup-miniconda@v3
-        with:
-          environment-file: environment.yml
-          python-version: 3.8
-          auto-activate-base: false
-      - run: |
-          conda info
-          conda list
+    - uses: actions/checkout@v4
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v3
+      with:
+        python-version: '3.8'
+    - name: Add conda to system path
+      run: |
+        # $CONDA is an environment variable pointing to the root of the miniconda directory
+        echo $CONDA/bin >> $GITHUB_PATH
+    - name: Install dependencies
+      run: |
+        conda env update --file environment.yml --name base
