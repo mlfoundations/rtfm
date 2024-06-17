@@ -1,7 +1,13 @@
 `rtfm` is a Python library for research on tabular foundation models (RTFM).
 
-`rtfm` is the library used to train TabuLa-8B, a model for tabular data prediction described in our paper,
+`rtfm` is the library used to train [TabuLa-8B](https://huggingface.co/mlfoundations/tabula-8b),
+a state-of-the-art model for zero- and few-shot tabular data prediction described in our paper
 "Large Scale Transfer Learning for Tabular Data via Language Modeling".
+
+<div align=center>
+<img alt="few-shot results curve" src="https://github.com/mlfoundations/rtfm/blob/main/assets/all_tasks_curves.png" width=50%>
+</div>
+
 You can also use `rtfm` to train your own tabular language models.
 
 `rtfm` has been used to train 7B- and 8B-parameter Llama 2 and Llama 3 language models,
@@ -13,7 +19,7 @@ We do not currently support other (non-Llama) language models.
 
 # Environment setup
 
-We recommend use of the `conda` environment. You can set it up with:
+We recommend use of the provided `conda` environment. You can set it up with:
 
 ```shell
 conda env create -f environment.yml
@@ -121,8 +127,8 @@ to serialize a set of parquet files:
 
 ```shell
 python scripts/serialize_interleave_and_shuffle.py \
-    --input-dir /Users/jpgard/Documents/github/tabliblib/tmp/tablib_processed/v1-sample-tiny \
-    --output-dir ./sampledata/v6.0.3/ \
+    --input-dir /glob/containing/parquet/files/ \
+    --output-dir ./serialized/v6.0.3/ \
     --max_tables 64 \
     --serializer_cls "BasicSerializerV2"
 ```
@@ -130,9 +136,9 @@ python scripts/serialize_interleave_and_shuffle.py \
 The recommended way to store training data is in a newline-delimited list of webdataset files.
 The above command will automatically generate sets of training, validation (`train-eval`), and test
 files, where the `train-eval` split comprises unseen rows from tables in the training split,
-and the `test` split comprises onnly unseen tables.
+and the `test` split comprises only unseen tables.
 
-### Using data hosted on s3 (recommended)
+### Using data hosted on S3 (recommended)
 
 Some datasets may be too large to store on disk during training.
 `rtfm` supports using files stored on AWS S3.
