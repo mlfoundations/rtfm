@@ -3,25 +3,23 @@ name: CPU Environment Build
 on: [push]
 
 jobs:
-  build:
+  build-linux:
     runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 5
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
-
-    - name: Set up Miniconda
-      uses: conda-incubator/setup-miniconda@v2
+    - uses: actions/checkout@v3
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v3
       with:
-        auto-update-conda: true
         python-version: '3.8'
-        activate-environment: rtfm
-
-    - name: Create conda environment
-      run: conda env create -f environment.yml
-
-    - name: Update conda
-      run: conda update -n base -c defaults conda
-
+    - name: Add conda to system path
+      run: |
+        # $CONDA is an environment variable pointing to the root of the miniconda directory
+        echo $CONDA/bin >> $GITHUB_PATH
+    - name: Install dependencies
+      run: |
+        conda env update --file environment.yml --name base
     - name: Install additional package
       run: conda run -n rtfm pip install --no-deps git+https://github.com/mlfoundations/tableshift.git
