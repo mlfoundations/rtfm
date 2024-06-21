@@ -1,0 +1,7 @@
+rtfm/sampledata/v6.0.3-serialized/train/traineval-000011.tar
+rtfm/sampledata/v6.0.3-serialized/train/traineval-000003.tar
+rtfm/sampledata/v6.0.3-serialized/train/traineval-000044.tar
+rtfm/sampledata/v6.0.3-serialized/train/traineval-000054.tar
+rtfm/sampledata/v6.0.3-serialized/train/traineval-000019.tar
+rtfm/sampledata/v6.0.3-serialized/train/traineval-000024.tar
+rtfm/sampledata/v6.0.3-serialized/train/traineval-000037.tar
