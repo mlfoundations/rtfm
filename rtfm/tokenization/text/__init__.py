@@ -12,10 +12,10 @@ from rtfm.special_tokens import DEFAULT_PAD_TOKEN, IGNORE_INDEX
 
 
 def fetch_tokenizer(
-        pretrained_model_name_or_path: str,
-        model_max_length: int,
-        use_fast_tokenizer: bool,
-        use_auth_token=None,
+    pretrained_model_name_or_path: str,
+    model_max_length: int,
+    use_fast_tokenizer: bool,
+    use_auth_token=None,
 ):
     tokenizer_kwargs = {
         "pretrained_model_name_or_path": pretrained_model_name_or_path,
@@ -30,13 +30,13 @@ def fetch_tokenizer(
 
 
 def prepare_tokenizer(
-        model,
-        pretrained_model_name_or_path: str,
-        model_max_length: int,
-        use_fast_tokenizer: bool,
-        serializer_tokens_embed_fn: Optional[str] = None,
-        serializer_tokens: Optional[Dict[str, str]] = None,
-        tokenizer=None,
+    model,
+    pretrained_model_name_or_path: str,
+    model_max_length: int,
+    use_fast_tokenizer: bool,
+    serializer_tokens_embed_fn: Optional[str] = None,
+    serializer_tokens: Optional[Dict[str, str]] = None,
+    tokenizer=None,
 ) -> Tuple[transformers.PreTrainedTokenizer, transformers.AutoModelForCausalLM]:
     logging.info(f"setting up tokenizer %s" % pretrained_model_name_or_path)
 
@@ -65,7 +65,7 @@ def prepare_tokenizer(
     assert tokenizer.bos_token is not None
 
     assert (
-            serializer_tokens_embed_fn is not None
+        serializer_tokens_embed_fn is not None
     ), f"Must provide serializer_tokens_embed_fn if is_train=True."
     tokenizer_and_embedding_resize(
         special_tokens_dict=special_tokens_dict,
@@ -85,7 +85,7 @@ def unmasked_token_idxs(tokens):
 
 
 def _tokenize_fn(
-        strings: Sequence[str], tokenizer: transformers.PreTrainedTokenizer
+    strings: Sequence[str], tokenizer: transformers.PreTrainedTokenizer
 ) -> Dict:
     """Tokenize a list of strings."""
     tokenized_list = [
@@ -112,9 +112,9 @@ def _tokenize_fn(
 
 
 def preprocess(
-        sources: Sequence[str],
-        targets: Sequence[str],
-        tokenizer: transformers.PreTrainedTokenizer,
+    sources: Sequence[str],
+    targets: Sequence[str],
+    tokenizer: transformers.PreTrainedTokenizer,
 ) -> Dict:
     """Preprocess the data by tokenizing."""
     examples = [s + t for s, t in zip(sources, targets)]
@@ -131,16 +131,16 @@ def preprocess(
 def sanity_check_tokenizer(tokenizer, model_name):
     logging.warning("sanity checking the tokenizer special tokens are in vocab...")
     if (
-            "llama" in model_name.lower()
-            and "2" in model_name
-            and len(tokenizer.vocab) < 128_254
+        "llama" in model_name.lower()
+        and "2" in model_name
+        and len(tokenizer.vocab) < 128_254
     ):
         eoc_token_id_expected = 32000
         qa_token_id_expected = 32001
         choices_sep_token_expected = 8876  # this token is already in llama3 vocab
 
     elif (
-            "llama" in model_name.lower() and "3" in model_name and len(tokenizer) > 128254
+        "llama" in model_name.lower() and "3" in model_name and len(tokenizer) > 128254
     ) or ("tabula-8b" in model_name.lower()):
         eoc_token_id_expected = 128256
         qa_token_id_expected = 128257
@@ -156,20 +156,20 @@ def sanity_check_tokenizer(tokenizer, model_name):
     ], f"QA_SEP token tokenizes to {tokenizer(tok.QA_SEP_TOKEN, add_special_tokens=False)['input_ids']}"
 
     assert tokenizer(tok.ANS_CHOICES_SEP_TOKEN, add_special_tokens=False)[
-               "input_ids"
-           ] == [
-               choices_sep_token_expected
-           ], f"ANS_CHOICES_SEP_TOKEN token tokenizes to {tokenizer(tok.ANS_CHOICES_SEP_TOKEN, add_special_tokens=False)['input_ids']}"
+        "input_ids"
+    ] == [
+        choices_sep_token_expected
+    ], f"ANS_CHOICES_SEP_TOKEN token tokenizes to {tokenizer(tok.ANS_CHOICES_SEP_TOKEN, add_special_tokens=False)['input_ids']}"
     logging.warning("tokenizer sanity check passed!")
 
 
 def tokenizer_and_embedding_resize(
-        special_tokens_dict: Dict[str, str],
-        tokenizer: transformers.PreTrainedTokenizer,
-        model: transformers.PreTrainedModel,
-        other_tokens_dict: Optional[Dict[str, str]] = None,
-        other_tokens_are_special_tokens: bool = True,
-        embed_fn: str = "smart",
+    special_tokens_dict: Dict[str, str],
+    tokenizer: transformers.PreTrainedTokenizer,
+    model: transformers.PreTrainedModel,
+    other_tokens_dict: Optional[Dict[str, str]] = None,
+    other_tokens_are_special_tokens: bool = True,
+    embed_fn: str = "smart",
 ):
     """Wrapper function to perform tokenizer and embedding resizing."""
     _embedding_resize_fns: Dict[str, Callable] = {
@@ -188,11 +188,11 @@ def tokenizer_and_embedding_resize(
 
 
 def hf_init_tokenizer_and_embedding_resize(
-        special_tokens_dict: Dict[str, str],
-        tokenizer: transformers.PreTrainedTokenizer,
-        model: transformers.PreTrainedModel,
-        other_tokens_dict: Optional[Dict[str, str]] = None,
-        other_tokens_are_special_tokens: bool = True,
+    special_tokens_dict: Dict[str, str],
+    tokenizer: transformers.PreTrainedTokenizer,
+    model: transformers.PreTrainedModel,
+    other_tokens_dict: Optional[Dict[str, str]] = None,
+    other_tokens_are_special_tokens: bool = True,
 ):
     """Use the HF default method.
 
@@ -207,11 +207,11 @@ def hf_init_tokenizer_and_embedding_resize(
 
 
 def vipi_tokenizer_and_embedding_resize(
-        special_tokens_dict: Dict[str, str],
-        tokenizer: transformers.PreTrainedTokenizer,
-        model: transformers.PreTrainedModel,
-        other_tokens_dict: Optional[Dict[str, str]] = None,
-        other_tokens_are_special_tokens: bool = True,
+    special_tokens_dict: Dict[str, str],
+    tokenizer: transformers.PreTrainedTokenizer,
+    model: transformers.PreTrainedModel,
+    other_tokens_dict: Optional[Dict[str, str]] = None,
+    other_tokens_are_special_tokens: bool = True,
 ):
     """A form of the VIPI tokenizer, applied only to 'other tokens dict'."""
     # use smart_tokenizer_and_embedding_resize for the special tokens
@@ -257,11 +257,11 @@ def vipi_tokenizer_and_embedding_resize(
 
 
 def smart_tokenizer_and_embedding_resize(
-        special_tokens_dict: Dict[str, str],
-        tokenizer: transformers.PreTrainedTokenizer,
-        model: transformers.PreTrainedModel,
-        other_tokens_dict: Optional[Dict[str, str]] = None,
-        other_tokens_are_special_tokens: bool = True,
+    special_tokens_dict: Dict[str, str],
+    tokenizer: transformers.PreTrainedTokenizer,
+    model: transformers.PreTrainedModel,
+    other_tokens_dict: Optional[Dict[str, str]] = None,
+    other_tokens_are_special_tokens: bool = True,
 ):
     """Resize tokenizer and embedding matrix, adding both special_tokens_dict and other_tokens_dict.
 

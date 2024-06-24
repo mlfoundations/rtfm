@@ -25,16 +25,15 @@ def get_task_csv_file(task_input_dir: str) -> str:
     csv_files = glob.glob(fileglob)
 
     assert (
-            len(csv_files) == 1
+        len(csv_files) == 1
     ), f"expected one csv file matching {fileglob}, got {csv_files}"
 
     return csv_files[0]
 
 
-def generate_files_from_csv(csv_src: str,
-                            output_dir: str,
-                            to_regression: bool,
-                            task: Optional[str] = None):
+def generate_files_from_csv(
+    csv_src: str, output_dir: str, to_regression: bool, task: Optional[str] = None
+):
     """Generate the FeatureList and TaskConfig for a CSV file,
     and write the results (including copy of CSV) to output_dir."""
     if task is None:

@@ -41,7 +41,7 @@ class Evaluator(ABC):
         self,
         model,
         tokenizer,
-            train_config: TrainConfig,
+        train_config: TrainConfig,
         dataset: Union[IterableDataset, Dataset],
         accelerator: Accelerator,
         labels: Sequence[str],
@@ -68,7 +68,7 @@ class OpenVocabularyEvaluator(Evaluator):
         self,
         model,
         tokenizer: transformers.PreTrainedTokenizer,
-            train_config: TrainConfig,
+        train_config: TrainConfig,
         dataset: Union[IterableDataset, Dataset],
         labels: Sequence[str],
         max_new_tokens=128,
@@ -80,7 +80,7 @@ class OpenVocabularyEvaluator(Evaluator):
         del normalize_length
 
         assert (
-                train_config.per_device_eval_batch_size == 1
+            train_config.per_device_eval_batch_size == 1
         ), "Only batch size of 1 is currently supported due to issues with batched generation."
         data_collator = rtfm.data.DataCollatorForSupervisedDataset(tokenizer)
 
@@ -142,7 +142,7 @@ class OpenVocabularyEvaluator(Evaluator):
 
         start_time = timestamp()
         for batch in tqdm(
-                loader, desc="eval_open_vocab", total=train_config.eval_max_samples
+            loader, desc="eval_open_vocab", total=train_config.eval_max_samples
         ):
             with torch.no_grad():
                 if is_xpu_available():
@@ -254,7 +254,7 @@ class ClosedVocabularyEvaluator(Evaluator):
         self,
         model,
         tokenizer,
-            train_config: TrainConfig,
+        train_config: TrainConfig,
         dataset: Union[IterableDataset, Dataset],
         accelerator: Accelerator,
         labels: Sequence[str],
@@ -389,7 +389,7 @@ class ClosedVocabularyEvaluator(Evaluator):
 
 def _log_preds(
     preds_for_logging: Dict[str, Any],
-        train_config: TrainConfig,
+    train_config: TrainConfig,
     accelerator: Accelerator,
     step: int,
     wandb_logging_prefix: str,

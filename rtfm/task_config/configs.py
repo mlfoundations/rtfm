@@ -56,7 +56,7 @@ class TLMConfig:
 
     @classmethod
     def from_yaml(
-            cls, yaml_file: str, required_fields=("prefix", "suffix", "labels_mapping")
+        cls, yaml_file: str, required_fields=("prefix", "suffix", "labels_mapping")
     ):
         if not os.path.exists(yaml_file):
             raise ValueError(f"yaml file {yaml_file} does not exist.")
@@ -82,7 +82,7 @@ class TLMConfig:
         if self.labels_mapping is None:
             y_out = str(y)
             assert (
-                    y_out in self.string_label_values
+                y_out in self.string_label_values
             ), f"{y_out} not in {self.string_label_values}"
             return y_out
         try:
