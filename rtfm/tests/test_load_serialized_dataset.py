@@ -30,6 +30,7 @@ class TestLoadSerializedDataset(unittest.TestCase):
         self.tokenizer, self.model = prepare_tokenizer(
             self.model,
             self.model_args.model_name_or_path,
+            4096,
             self.model_args.use_fast_tokenizer,
             self.model_args.serializer_tokens_embed_fn,
             self.serializer.special_tokens,
