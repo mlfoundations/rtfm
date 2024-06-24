@@ -32,7 +32,7 @@ NO_DROPNA_EXPERIMENTS = [
 
 
 def fetch_preprocessor_config_from_data_args(
-        data_args: DataArguments, experiment: str
+    data_args: DataArguments, experiment: str
 ) -> PreprocessorConfig:
     numeric_value_handling = NUM_FEATURE_TRANSFORM_MAPPING[
         data_args.feature_value_handling

@@ -39,10 +39,10 @@ from rtfm.task_config import (
 
 
 def _tokenize_fn(
-        strings: Sequence[str],
-        tokenizer: transformers.PreTrainedTokenizer,
-        padding="longest",
-        truncation="do_not_truncate",
+    strings: Sequence[str],
+    tokenizer: transformers.PreTrainedTokenizer,
+    padding="longest",
+    truncation="do_not_truncate",
 ) -> Dict:
     """Tokenize a list of strings."""
     tokenized_list = [
@@ -69,9 +69,9 @@ def _tokenize_fn(
 
 
 def preprocess(
-        sources: Sequence[str],
-        targets: Sequence[str],
-        tokenizer: transformers.PreTrainedTokenizer,
+    sources: Sequence[str],
+    targets: Sequence[str],
+    tokenizer: transformers.PreTrainedTokenizer,
 ) -> Dict:
     """Preprocess the data by tokenizing."""
     sources_and_targets = [s + t for s, t in zip(sources, targets)]
@@ -198,7 +198,7 @@ def is_numeric_series(vals: Union[pd.Series, Sequence[str]]) -> bool:
 
 
 def is_valid_target_column(
-        data_args: DataArguments, ser: pd.Series, unique_values_serializable: Sequence[str]
+    data_args: DataArguments, ser: pd.Series, unique_values_serializable: Sequence[str]
 ) -> bool:
     """Check whether a target column is valid based on data_args."""
     if "Unnamed:" in ser.name:
@@ -220,10 +220,10 @@ def is_valid_target_column(
 
     all_values_are_numeric = is_numeric_series(unique_values_serializable)
     if (
-            data_args.labels_require_nonunique
-            and ser.nunique() == len(ser)
-            # Allow numeric columns to have all unique values if labels_drop_numeric is False.
-            and (not data_args.labels_drop_numeric and all_values_are_numeric)
+        data_args.labels_require_nonunique
+        and ser.nunique() == len(ser)
+        # Allow numeric columns to have all unique values if labels_drop_numeric is False.
+        and (not data_args.labels_drop_numeric and all_values_are_numeric)
     ):
         logging.warning(
             f"excluding target candidate {ser.name} due to only unique values"
@@ -231,10 +231,10 @@ def is_valid_target_column(
         return False
 
     if (
-            data_args.labels_drop_numeric
-            and all_values_are_numeric
-            # Allow numeric columns if they are binary {0,1}.
-            and not set(unique_values_serializable) == {"0", "1"}
+        data_args.labels_drop_numeric
+        and all_values_are_numeric
+        # Allow numeric columns if they are binary {0,1}.
+        and not set(unique_values_serializable) == {"0", "1"}
     ):
         logging.warning(
             f"excluding target candidate {ser.name} due to being of numeric type"
@@ -242,7 +242,7 @@ def is_valid_target_column(
         return False
 
     if any(
-            len(str(x)) > data_args.max_target_len_chars for x in unique_values_serializable
+        len(str(x)) > data_args.max_target_len_chars for x in unique_values_serializable
     ):
         logging.warning(
             f"excluding target candidate {ser.name} due to values exceeding {data_args.max_target_len_chars} chars"
@@ -369,7 +369,7 @@ def build_formatted_df_from_file(file, data_args: DataArguments) -> pd.DataFrame
 
 
 def load_uncached_hf_dataset(
-        task: str, split: str, data_args: DataArguments, as_iterable: bool
+    task: str, split: str, data_args: DataArguments, as_iterable: bool
 ) -> Union[Dataset, IterableDataset]:
     preprocessor_config = fetch_preprocessor_config_from_data_args(data_args, task)
     if data_args.from_files:
@@ -399,10 +399,10 @@ def load_uncached_hf_dataset(
 
 
 def example_map_fn(
-        elem: Dict,
-        data_args: DataArguments,
-        serializer: RowSerializer,
-        cfg: Optional[TLMConfig] = None,
+    elem: Dict,
+    data_args: DataArguments,
+    serializer: RowSerializer,
+    cfg: Optional[TLMConfig] = None,
 ) -> Dict[str, str]:
     """Extract the target from elem and serialize the other features.
 
@@ -456,15 +456,15 @@ def example_map_fn(
 
 
 def load_serialized_dataset(
-        task,
-        data_args: DataArguments,
-        serializer: RowSerializer,
-        split: str,
-        as_iterable: bool,
-        extension=".parquet",
-        print_one_example: bool = False,
-        cfg: Optional[TLMConfig] = None,
-        **tabular_dataset_kwargs,
+    task,
+    data_args: DataArguments,
+    serializer: RowSerializer,
+    split: str,
+    as_iterable: bool,
+    extension=".parquet",
+    print_one_example: bool = False,
+    cfg: Optional[TLMConfig] = None,
+    **tabular_dataset_kwargs,
 ) -> Union[Dataset, IterableDataset]:
     """Load the serialized HF dataset for a task by fetching the HF dataset and serializing the results.
 
@@ -494,13 +494,13 @@ def load_serialized_dataset(
 
 
 def load_serialized_interleaved_dataset(
-        task_names: Sequence[str],
-        data_args: DataArguments,
-        serializer: RowSerializer,
-        as_iterable: bool,
-        split="train",
-        extension=".parquet",
-        print_one_example=False,
+    task_names: Sequence[str],
+    data_args: DataArguments,
+    serializer: RowSerializer,
+    as_iterable: bool,
+    split="train",
+    extension=".parquet",
+    print_one_example=False,
 ) -> Union[Dataset, IterableDataset]:
     """Serialize and interleave the examples from task_names.
 
@@ -540,9 +540,9 @@ def load_serialized_interleaved_dataset(
 
 
 def tokenize_batch(
-        batch: Dict[str, List[str]],
-        tokenizer,
-        data_arguments: DataArguments,
+    batch: Dict[str, List[str]],
+    tokenizer,
+    data_arguments: DataArguments,
 ) -> Dict[str, List[str]]:
     """Tokenize a dataset (in the format expected by Hugging Face dataset.map()).
 
@@ -577,9 +577,9 @@ def add_qa_and_eoc_tokens_to_example(ex):
 
 
 def handle_too_long(
-        tokenized_ds_dict: Dict[str, Union[Dataset, IterableDataset]],
-        data_arguments: DataArguments,
-        max_length: int,
+    tokenized_ds_dict: Dict[str, Union[Dataset, IterableDataset]],
+    data_arguments: DataArguments,
+    max_length: int,
 ) -> Dict[str, Union[Dataset, IterableDataset]]:
     """Apply the correct handling of too-long inputs to each dataset in ds_dict."""
     if data_arguments.handle_too_long == "drop":
@@ -606,14 +606,14 @@ def table_id_from_key(k: str) -> str:
 
 
 def ids_and_lens_from_batch(
-        batch: Dict[str, List[Union[torch.Tensor, str]]]
+    batch: Dict[str, List[Union[torch.Tensor, str]]]
 ) -> List[List[int]]:
     """Return a nested list where the ith element is [i, len(example_i)]."""
     return [[i, len(ids)] for i, ids in enumerate(batch["input_ids"])]
 
 
 def merge_batch_samples_by_key(
-        batch: Dict[str, List[Union[torch.Tensor, str]]]
+    batch: Dict[str, List[Union[torch.Tensor, str]]]
 ) -> List[List[int]]:
     """When samples are from the same source table, combine a sample with the one preceding it.
 
@@ -625,7 +625,7 @@ def merge_batch_samples_by_key(
     ids_and_lens = ids_and_lens_from_batch(batch)
     for i in range(1, len(batch["__key__"])):
         if table_id_from_key(batch["__key__"][i]) == table_id_from_key(
-                batch["__key__"][i - 1]
+            batch["__key__"][i - 1]
         ):
             # print(
             #     f"[DEBUG] merging samples with key {batch['__key__'][i]} and {batch['__key__'][i-1]}"
@@ -666,11 +666,11 @@ def generate_position_ids(ids_and_lens, max_len) -> List[int]:
 
 
 def pack_samples(
-        batch: Dict[str, Union[str, List[torch.Tensor]]],
-        max_len: int,
-        trim_extra_bos_tokens: bool = False,
-        merge_samples_by_key: bool = True,
-        bos_token_id: Optional[int] = None,
+    batch: Dict[str, Union[str, List[torch.Tensor]]],
+    max_len: int,
+    trim_extra_bos_tokens: bool = False,
+    merge_samples_by_key: bool = True,
+    bos_token_id: Optional[int] = None,
 ) -> Dict[str, List[torch.Tensor]]:
     """ "Pack a set of samples into a batch, discarding any extra data.
 
@@ -682,7 +682,7 @@ def pack_samples(
 
     if trim_extra_bos_tokens and len(batch["input_ids"]) > 1:
         assert (
-                bos_token_id is not None
+            bos_token_id is not None
         ), "bos_token_id is required to trim extra bos tokens."
         for i in range(1, len(batch["input_ids"])):
             if batch["input_ids"][i][0] == bos_token_id:
@@ -720,9 +720,9 @@ def pack_samples(
 
 
 def make_few_shot(
-        batch: Dict[str, List[torch.Tensor]],
-        max_len: int,
-        trim_extra_bos_tokens: bool = True,
+    batch: Dict[str, List[torch.Tensor]],
+    max_len: int,
+    trim_extra_bos_tokens: bool = True,
 ) -> Dict[str, List[torch.Tensor]]:
     """
     Pack a set of samples into a few-shot example, where each dictionary in the returned list
@@ -764,8 +764,8 @@ def make_few_shot(
         target_labels = maybe_cast_to_tensor(batch["labels"][target_sample_idx]).long()
         if trim_extra_bos_tokens and target_sample_idx > 0:
             target_input_ids = target_input_ids[
-                               1:
-                               ]  # also trim the BOS token if necessary
+                1:
+            ]  # also trim the BOS token if necessary
             target_labels = target_labels[1:]
 
         input_ids_tensors.append(target_input_ids)
@@ -785,11 +785,11 @@ def make_few_shot(
 
 
 def tokenize_and_preprocess_ds_dict(
-        ds_dict: Dict[str, Union[Dataset, IterableDataset]],
-        tokenizer,
-        data_arguments: DataArguments,
-        is_train=True,
-        max_samples: Optional[int] = None,
+    ds_dict: Dict[str, Union[Dataset, IterableDataset]],
+    tokenizer,
+    data_arguments: DataArguments,
+    is_train=True,
+    max_samples: Optional[int] = None,
 ) -> Dict[str, Union[Dataset, IterableDataset]]:
     """Take the results of load_serialized_interleaved_dataset() and tokenize/preprocess.
 
@@ -853,16 +853,15 @@ def tokenize_and_preprocess_ds_dict(
 
 
 def load_tokenize_and_serialize_tabular_dataset(
-        tokenizer,
-        task_names,
-        data_arguments: DataArguments,
-        batch_size: int,
-        serializer: RowSerializer,
-        is_train=True,
-        splits=("train", "validation", "test"),
-        as_iterable: bool = True,
-        max_samples: Optional[int] = None,
-        print_one_example: bool = False,
+    tokenizer,
+    task_names,
+    data_arguments: DataArguments,
+    serializer: RowSerializer,
+    is_train=True,
+    splits=("train", "validation", "test"),
+    as_iterable: bool = True,
+    max_samples: Optional[int] = None,
+    print_one_example: bool = False,
 ) -> Dict[str, Union[Dataset, IterableDataset]]:
     """Load a tabular dataset, tokenize and preprocess it.
 
@@ -893,7 +892,7 @@ def load_tokenize_and_serialize_tabular_dataset(
 
 
 def shuffle_dataset(
-        ds: Union[Dataset, IterableDataset], shuffle_random_seed, shuffle_buffer_size=None
+    ds: Union[Dataset, IterableDataset], shuffle_random_seed, shuffle_buffer_size=None
 ):
     """Helper function to shuffle a dataset, because IterableDataset and Dataset have different shuffle interfaces."""
     if isinstance(ds, IterableDataset):
@@ -908,16 +907,16 @@ def shuffle_dataset(
 
 
 def load_and_tokenize_preserialized_hf_dataset(
-        tokenizer,
-        task_names,
-        data_arguments: DataArguments,
-        split: str,
-        is_train=True,
-        as_iterable: bool = True,
-        max_samples: Optional[int] = None,
-        shuffle=None,
-        shuffle_buffer_size: Optional[int] = 10_000,
-        shuffle_random_seed=42,
+    tokenizer,
+    task_names,
+    data_arguments: DataArguments,
+    split: str,
+    is_train=True,
+    as_iterable: bool = True,
+    max_samples: Optional[int] = None,
+    shuffle=None,
+    shuffle_buffer_size: Optional[int] = 10_000,
+    shuffle_random_seed=42,
 ) -> Dict[str, Union[Dataset, IterableDataset]]:
     if shuffle is None and is_train:
         shuffle = True
@@ -956,20 +955,20 @@ def log_and_continue(exn):
 
 
 def load_and_tokenize_preserialized_wds(
-        tokenizer,
-        urls: Sequence[str],
-        data_arguments: DataArguments,
-        split: str,
-        is_train=True,
-        as_iterable: bool = True,
-        max_samples: Optional[int] = None,
-        shuffle_shards: bool = True,
-        shuffle_before_packing: bool = False,
-        shuffle_after_packing: bool = True,
-        shuffle_buffer_size: Optional[int] = 10_000,
-        shuffle_random_seed=42,
-        require_full_context_size: bool = True,
-        shards_shuffle_buffer_size=100,
+    tokenizer,
+    urls: Sequence[str],
+    data_arguments: DataArguments,
+    split: str,
+    is_train=True,
+    as_iterable: bool = True,
+    max_samples: Optional[int] = None,
+    shuffle_shards: bool = True,
+    shuffle_before_packing: bool = False,
+    shuffle_after_packing: bool = True,
+    shuffle_buffer_size: Optional[int] = 10_000,
+    shuffle_random_seed=42,
+    require_full_context_size: bool = True,
+    shards_shuffle_buffer_size=100,
 ) -> Dict[str, wds.WebDataset]:
     del as_iterable
     del max_samples
@@ -1054,9 +1053,9 @@ def load_and_tokenize_preserialized_wds(
             # For non-training cases, we consider padding tokens, and require samples
             # to fit in context window.
             length_is_ok = (
-                    example["input_ids"].ne(tokenizer.pad_token_id).sum().item()
-                    + example["labels"].ne(-100).sum().item()
-                    <= tokenizer.model_max_length
+                example["input_ids"].ne(tokenizer.pad_token_id).sum().item()
+                + example["labels"].ne(-100).sum().item()
+                <= tokenizer.model_max_length
             )
         if not length_is_ok:
             logging.warning(f"dropping sample with length {len(example['input_ids'])}")
@@ -1126,16 +1125,16 @@ def load_and_tokenize_preserialized_wds(
 
 
 def load_and_tokenize_preserialized_dataset(
-        tokenizer,
-        task_names,
-        data_arguments: DataArguments,
-        split: str,
-        is_train=True,
-        as_iterable: bool = True,
-        max_samples: Optional[int] = None,
-        shuffle=None,
-        shuffle_buffer_size: Optional[int] = 10_000,
-        shuffle_random_seed=42,
+    tokenizer,
+    task_names,
+    data_arguments: DataArguments,
+    split: str,
+    is_train=True,
+    as_iterable: bool = True,
+    max_samples: Optional[int] = None,
+    shuffle=None,
+    shuffle_buffer_size: Optional[int] = 10_000,
+    shuffle_random_seed=42,
 ) -> Dict[str, Union[Dataset, IterableDataset]]:
     """Load a preserialized tabular dataset, tokenize and preprocess it.
 
@@ -1170,21 +1169,20 @@ def load_and_tokenize_preserialized_dataset(
 
 
 def prepare_tokenized_dataset(
-        data_arguments: DataArguments,
-        train_config: TrainConfig,
-        serializer,
-        accelerator,
-        tokenizer,
-        task_names,
-        shuffle: bool,
-        split="train",
+    data_arguments: DataArguments,
+    train_config: TrainConfig,
+    serializer,
+    accelerator,
+    tokenizer,
+    task_names,
+    shuffle: bool,
+    split="train",
 ):
     if not data_arguments.use_preserialized:
         train_ds_tokenized = load_tokenize_and_serialize_tabular_dataset(
             tokenizer=tokenizer,
             task_names=task_names,
             data_arguments=data_arguments,
-            batch_size=train_config.batch_size_training,
             serializer=serializer,
             print_one_example=accelerator.is_main_process,
         )

@@ -59,7 +59,7 @@ class RowSerializer(ABC):
             x = x.to_dict()
         keys = list(x.keys())
         for i, key in enumerate(keys[:-1]):
-            if self.strict and any(key in x for x in keys[i + 1:]):
+            if self.strict and any(key in x for x in keys[i + 1 :]):
                 raise ValueError(f"Cannot have one key that contains another: {keys}")
         if "__metafeatures__" in x:
             # Check that every feature entry for each metafeature_corresponds to an actual feature.
@@ -84,9 +84,9 @@ class RowSerializer(ABC):
 
     @abstractmethod
     def serialize_example(
-            self,
-            x: Union[pd.Series, Dict[Any, Any]],
-            meta: Dict[str, Dict[str, Any]] = None,
+        self,
+        x: Union[pd.Series, Dict[Any, Any]],
+        meta: Dict[str, Dict[str, Any]] = None,
     ) -> str:
         raise
 
@@ -96,7 +96,7 @@ class RowSerializer(ABC):
 
     @abstractmethod
     def deserialize_example(
-            self, x: str, feature_names: Sequence[str]
+        self, x: str, feature_names: Sequence[str]
     ) -> Dict[str, str]:
         """Deserialize an example.
 
@@ -112,15 +112,15 @@ class RowSerializer(ABC):
 
     @abstractmethod
     def __call__(
-            self,
-            x: Union[pd.Series, Dict[Any, Any]],
-            prefix_text="",
-            suffix_text="",
-            choices: List[str] = None,
-            task_context_text="",
-            meta: Dict[str, Dict[str, Any]] = None,
-            *args,
-            **kwargs,
+        self,
+        x: Union[pd.Series, Dict[Any, Any]],
+        prefix_text="",
+        suffix_text="",
+        choices: List[str] = None,
+        task_context_text="",
+        meta: Dict[str, Dict[str, Any]] = None,
+        *args,
+        **kwargs,
     ):
         raise
 
@@ -155,7 +155,7 @@ class BasicSerializer(RowSerializer):
             # most metafeatures (quantile, scaled value, etc) are only populated for
             # specific data types.
             meta_serialized = (
-                    " (" + ", ".join(f"{k}:{v}" for k, v in meta.items()) + ")"
+                " (" + ", ".join(f"{k}:{v}" for k, v in meta.items()) + ")"
             )
             serialized += meta_serialized
 
@@ -164,9 +164,9 @@ class BasicSerializer(RowSerializer):
         return serialized
 
     def serialize_example(
-            self,
-            x: Union[pd.Series, Dict[Any, Any]],
-            meta: Dict[str, Dict[str, Any]] = None,
+        self,
+        x: Union[pd.Series, Dict[Any, Any]],
+        meta: Dict[str, Dict[str, Any]] = None,
     ) -> str:
         x = self._prepare_example(x)
         keys_and_values = [
@@ -177,7 +177,7 @@ class BasicSerializer(RowSerializer):
         return keys_and_values
 
     def deserialize_example(
-            self, x: str, feature_names: Sequence[str]
+        self, x: str, feature_names: Sequence[str]
     ) -> Dict[str, str]:
         output = {}
 
@@ -226,16 +226,16 @@ class BasicSerializer(RowSerializer):
             return " or ".join(choices)
 
     def __call__(
-            self,
-            x: Union[pd.Series, Dict[Any, Any]],
-            prefix_text="",
-            suffix_text="",
-            choices: List[str] = None,
-            task_context_text="",
-            strict=False,
-            meta: Dict[str, Dict[str, Any]] = None,
-            *args,
-            **kwargs,
+        self,
+        x: Union[pd.Series, Dict[Any, Any]],
+        prefix_text="",
+        suffix_text="",
+        choices: List[str] = None,
+        task_context_text="",
+        strict=False,
+        meta: Dict[str, Dict[str, Any]] = None,
+        *args,
+        **kwargs,
     ):
         keys_and_values = self.serialize_example(x, meta)
         if self.example_end_char in suffix_text and strict:
@@ -338,9 +338,9 @@ class StructuredSerializer(RowSerializer):
 
     def serialize_choices(self, choices: List[str] = None):
         return (
-                self.special_tokens["choices_start_token"]
-                + self.special_tokens["ans_choices_sep_token"].join(choices)
-                + self.special_tokens["choices_end_token"]
+            self.special_tokens["choices_start_token"]
+            + self.special_tokens["ans_choices_sep_token"].join(choices)
+            + self.special_tokens["choices_end_token"]
         )
 
     @property
@@ -357,7 +357,7 @@ class StructuredSerializer(RowSerializer):
         """Serialize an individual key-value pair."""
         serialized = f"{self.key_start_token}{k}{self.key_end_token}{self.value_start_token}{v}{self.value_end_token}"
         if (
-                meta
+            meta
         ):  # TODO(jpgard): should we check data_args here to ensure metafeatures should be added?
             # Note that metafeatures will only be present for some features. This is because
             # most metafeatures (quantile, scaled value, etc) are only populated for
@@ -370,9 +370,9 @@ class StructuredSerializer(RowSerializer):
         return serialized
 
     def serialize_example(
-            self,
-            x: Union[pd.Series, Dict[Any, Any]],
-            meta: Dict[str, Dict[str, Any]] = None,
+        self,
+        x: Union[pd.Series, Dict[Any, Any]],
+        meta: Dict[str, Dict[str, Any]] = None,
     ) -> str:
         x = self._prepare_example(x)
         output_elems = [
@@ -382,7 +382,7 @@ class StructuredSerializer(RowSerializer):
         return "".join(output_elems)
 
     def deserialize_example(
-            self, x: str, feature_names: Sequence[str]
+        self, x: str, feature_names: Sequence[str]
     ) -> Dict[str, str]:
         output = {}
 
@@ -392,30 +392,30 @@ class StructuredSerializer(RowSerializer):
         value_start_idxs = find_all_idxs(self.value_start_token, x)
         value_end_idxs = find_all_idxs(self.value_end_token, x)
         if not all(
-                len(x) == len(key_start_idxs)
-                for x in (key_end_idxs, value_start_idxs, value_end_idxs)
+            len(x) == len(key_start_idxs)
+            for x in (key_end_idxs, value_start_idxs, value_end_idxs)
         ):
             raise ValueError("Bad example: {x}")
 
         for key_start, key_end, value_start, value_end in zip(
-                key_start_idxs, key_end_idxs, value_start_idxs, value_end_idxs
+            key_start_idxs, key_end_idxs, value_start_idxs, value_end_idxs
         ):
-            key = x[key_start + len(self.key_start_token): key_end]
-            val = x[value_start + len(self.value_start_token): value_end]
+            key = x[key_start + len(self.key_start_token) : key_end]
+            val = x[value_start + len(self.value_start_token) : value_end]
             output[key] = val
 
         return output
 
     def __call__(
-            self,
-            x: Union[pd.Series, Dict[Any, Any]],
-            prefix_text="",
-            suffix_text="",
-            choices: List[str] = None,
-            task_context_text="",
-            meta: Dict[str, Dict[str, Any]] = None,
-            *args,
-            **kwargs,
+        self,
+        x: Union[pd.Series, Dict[Any, Any]],
+        prefix_text="",
+        suffix_text="",
+        choices: List[str] = None,
+        task_context_text="",
+        meta: Dict[str, Dict[str, Any]] = None,
+        *args,
+        **kwargs,
     ):
         if prefix_text:
             prefix_text = self.prefix_start_token + prefix_text + self.prefix_end_token
@@ -426,9 +426,9 @@ class StructuredSerializer(RowSerializer):
         else:
             choices_text = ""
         example_serialized = (
-                self.train_example_start_token
-                + self.serialize_example(x, meta)
-                + self.train_example_end_token
+            self.train_example_start_token
+            + self.serialize_example(x, meta)
+            + self.train_example_end_token
         )
         to_serialize = [
             task_context_text,
@@ -451,14 +451,14 @@ class BaseDictBasedSerializer(RowSerializer):
         raise
 
     def serialize_example(
-            self,
-            x: Union[pd.Series, Dict[Any, Any]],
-            meta: Dict[str, Dict[str, Any]] = None,
+        self,
+        x: Union[pd.Series, Dict[Any, Any]],
+        meta: Dict[str, Dict[str, Any]] = None,
     ) -> str:
         raise
 
     def deserialize_example(
-            self, x: str, feature_names: Sequence[str]
+        self, x: str, feature_names: Sequence[str]
     ) -> Dict[str, str]:
         raise
 
@@ -467,13 +467,13 @@ class BaseDictBasedSerializer(RowSerializer):
         raise
 
     def prepare_sample_dict(
-            self,
-            x: Union[pd.Series, Dict[Any, Any]],
-            prefix_text="",
-            suffix_text="",
-            choices_text="",
-            task_context_text="",
-            meta: Dict[str, Dict[str, Any]] = None,
+        self,
+        x: Union[pd.Series, Dict[Any, Any]],
+        prefix_text="",
+        suffix_text="",
+        choices_text="",
+        task_context_text="",
+        meta: Dict[str, Dict[str, Any]] = None,
     ) -> Dict[Any, Any]:
         """Preprocess a sample by preparing a sample dict for further serializer=specific formatting.
 
@@ -507,15 +507,15 @@ class BaseDictBasedSerializer(RowSerializer):
         return df_dict
 
     def __call__(
-            self,
-            x: Union[pd.Series, Dict[Any, Any]],
-            prefix_text="",
-            suffix_text="",
-            choices: List[str] = None,
-            task_context_text="",
-            meta: Dict[str, Dict[str, Any]] = None,
-            *args,
-            **kwargs,
+        self,
+        x: Union[pd.Series, Dict[Any, Any]],
+        prefix_text="",
+        suffix_text="",
+        choices: List[str] = None,
+        task_context_text="",
+        meta: Dict[str, Dict[str, Any]] = None,
+        *args,
+        **kwargs,
     ):
         raise
 
@@ -533,9 +533,9 @@ class PandasSeriesSerializer(BaseDictBasedSerializer):
         raise
 
     def serialize_example(
-            self,
-            x: Union[pd.Series, Dict[Any, Any]],
-            meta: Dict[str, Dict[str, Any]] = None,
+        self,
+        x: Union[pd.Series, Dict[Any, Any]],
+        meta: Dict[str, Dict[str, Any]] = None,
     ) -> str:
         """This method should never be called; all pieces of the example are
         serialized only once, together, to form JSON that can be
@@ -543,7 +543,7 @@ class PandasSeriesSerializer(BaseDictBasedSerializer):
         raise
 
     def deserialize_example(
-            self, x: str, feature_names: Sequence[str]
+        self, x: str, feature_names: Sequence[str]
     ) -> Dict[str, str]:
         """Deserialize an example.
 
@@ -558,15 +558,15 @@ class PandasSeriesSerializer(BaseDictBasedSerializer):
         return _SPECIAL_TOKENS_MAP
 
     def __call__(
-            self,
-            x: Union[pd.Series, Dict[Any, Any]],
-            prefix_text="",
-            suffix_text="",
-            choices: List[str] = None,
-            task_context_text="",
-            meta: Dict[str, Dict[str, Any]] = None,
-            *args,
-            **kwargs,
+        self,
+        x: Union[pd.Series, Dict[Any, Any]],
+        prefix_text="",
+        suffix_text="",
+        choices: List[str] = None,
+        task_context_text="",
+        meta: Dict[str, Dict[str, Any]] = None,
+        *args,
+        **kwargs,
     ):
         df_dict = self.prepare_sample_dict(
             x=x,
@@ -629,9 +629,9 @@ class HtmlSerializer(BaseDictBasedSerializer):
         raise
 
     def serialize_example(
-            self,
-            x: Union[pd.Series, Dict[Any, Any]],
-            meta: Dict[str, Dict[str, Any]] = None,
+        self,
+        x: Union[pd.Series, Dict[Any, Any]],
+        meta: Dict[str, Dict[str, Any]] = None,
     ) -> str:
         """This method should never be called; all pieces of the example are
         serialized only once, together, to form JSON that can be
@@ -639,7 +639,7 @@ class HtmlSerializer(BaseDictBasedSerializer):
         raise
 
     def deserialize_example(
-            self, x: str, feature_names: Sequence[str]
+        self, x: str, feature_names: Sequence[str]
     ) -> Dict[str, str]:
         """Deserialize an example.
 
@@ -654,15 +654,15 @@ class HtmlSerializer(BaseDictBasedSerializer):
         return _SPECIAL_TOKENS_MAP
 
     def __call__(
-            self,
-            x: Union[pd.Series, Dict[Any, Any]],
-            prefix_text="",
-            suffix_text="",
-            choices: List[str] = None,
-            task_context_text="",
-            meta: Dict[str, Dict[str, Any]] = None,
-            *args,
-            **kwargs,
+        self,
+        x: Union[pd.Series, Dict[Any, Any]],
+        prefix_text="",
+        suffix_text="",
+        choices: List[str] = None,
+        task_context_text="",
+        meta: Dict[str, Dict[str, Any]] = None,
+        *args,
+        **kwargs,
     ):
         example_dict = self.prepare_sample_dict(
             x=x,
@@ -677,15 +677,15 @@ class HtmlSerializer(BaseDictBasedSerializer):
 
 class HtmlNoWhitespaceSerializer(HtmlSerializer):
     def __call__(
-            self,
-            x: Union[pd.Series, Dict[Any, Any]],
-            prefix_text="",
-            suffix_text="",
-            choices: List[str] = None,
-            task_context_text="",
-            meta: Dict[str, Dict[str, Any]] = None,
-            *args,
-            **kwargs,
+        self,
+        x: Union[pd.Series, Dict[Any, Any]],
+        prefix_text="",
+        suffix_text="",
+        choices: List[str] = None,
+        task_context_text="",
+        meta: Dict[str, Dict[str, Any]] = None,
+        *args,
+        **kwargs,
     ):
         serialized_to_html = super().__call__(
             x=x,
@@ -730,9 +730,9 @@ class JsonSerializer(BaseDictBasedSerializer):
         raise
 
     def serialize_example(
-            self,
-            x: Union[pd.Series, Dict[Any, Any]],
-            meta: Dict[str, Dict[str, Any]] = None,
+        self,
+        x: Union[pd.Series, Dict[Any, Any]],
+        meta: Dict[str, Dict[str, Any]] = None,
     ) -> str:
         """This method should never be called; all pieces of the example are
         serialized only once, together, to form JSON that can be
@@ -740,7 +740,7 @@ class JsonSerializer(BaseDictBasedSerializer):
         raise
 
     def deserialize_example(
-            self, x: str, feature_names: Sequence[str]
+        self, x: str, feature_names: Sequence[str]
     ) -> Dict[str, str]:
         """Deserialize an example.
 
@@ -755,15 +755,15 @@ class JsonSerializer(BaseDictBasedSerializer):
         return _SPECIAL_TOKENS_MAP
 
     def __call__(
-            self,
-            x: Union[pd.Series, Dict[Any, Any]],
-            prefix_text="",
-            suffix_text="",
-            choices: List[str] = None,
-            task_context_text="",
-            meta: Dict[str, Dict[str, Any]] = None,
-            *args,
-            **kwargs,
+        self,
+        x: Union[pd.Series, Dict[Any, Any]],
+        prefix_text="",
+        suffix_text="",
+        choices: List[str] = None,
+        task_context_text="",
+        meta: Dict[str, Dict[str, Any]] = None,
+        *args,
+        **kwargs,
     ):
         example_dict = self.prepare_sample_dict(
             x=x,

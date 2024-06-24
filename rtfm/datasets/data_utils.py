@@ -55,10 +55,10 @@ def bytes_to_str(byte_data):
 
 def is_array_type(x) -> bool:
     return (
-            isinstance(x, np.ndarray)
-            or isinstance(x, pd.Series)
-            or isinstance(x, list)
-            or isinstance(x, tuple)
+        isinstance(x, np.ndarray)
+        or isinstance(x, pd.Series)
+        or isinstance(x, list)
+        or isinstance(x, tuple)
     )
 
 
@@ -73,7 +73,7 @@ def make_object_json_serializable(x) -> Union[str, List[str]]:
     elif isinstance(x, bytes):
         return bytes_to_str(x)
     elif isinstance(
-            x, (datetime.time, pd.Timestamp, pd.Timedelta, pd.Period, np.datetime64)
+        x, (datetime.time, pd.Timestamp, pd.Timedelta, pd.Period, np.datetime64)
     ):
         # Explicitly convert datetime objects to string, ensuring timezone-aware datetimes are handled.
         return x.isoformat() if hasattr(x, "isoformat") else str(x)
@@ -87,9 +87,9 @@ def is_date_column(ser: pd.Series) -> bool:
     Specifically, pd.core.dtypes.common.is_datetime_or_timedelta_dtype does not handle
     datetime64tz types (it returns False) so we explicitly include that check."""
     return (
-            pd.core.dtypes.common.is_datetime_or_timedelta_dtype(ser)
-            or pd.core.dtypes.common.is_datetime64_dtype(ser)
-            or pd.core.dtypes.common.is_datetime64tz_dtype(ser)
+        pd.core.dtypes.common.is_datetime_or_timedelta_dtype(ser)
+        or pd.core.dtypes.common.is_datetime64_dtype(ser)
+        or pd.core.dtypes.common.is_datetime64tz_dtype(ser)
     )
 
 
