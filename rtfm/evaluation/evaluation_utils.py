@@ -18,11 +18,11 @@ from rtfm.utils import get_task_names_list
 
 
 def get_preds(
-        tokenized_ds: Dataset,
-        max_eval_samples: int,
-        tokenizer: transformers.PreTrainedTokenizer,
-        model: transformers.AutoModelForCausalLM,
-        max_new_tokens: int = 6,
+    tokenized_ds: Dataset,
+    max_eval_samples: int,
+    tokenizer: transformers.PreTrainedTokenizer,
+    model: transformers.AutoModelForCausalLM,
+    max_new_tokens: int = 6,
 ) -> List[Dict]:
     preds = []
     iterator = iter(tokenized_ds)
@@ -52,12 +52,12 @@ def get_preds(
 
 
 def prepare_eval_kwargs(
-        tokenizer,
-        eval_serializer,
-        accelerator: Union[Accelerator, None],
-        data_arguments: DataArguments,
-        train_config: TrainConfig,
-        splits_to_keep: Sequence[str] = ("test",),
+    tokenizer,
+    eval_serializer,
+    accelerator: Union[Accelerator, None],
+    data_arguments: DataArguments,
+    train_config: TrainConfig,
+    splits_to_keep: Sequence[str] = ("test",),
 ) -> Dict[str, Any]:
     eval_dataset_kwargs = {
         "tokenizer": tokenizer,
@@ -80,12 +80,12 @@ def prepare_eval_kwargs(
 
 
 def prepare_eval_datasets(
-        eval_task_names: Union[str, None],
-        exclude_task_names: Union[Sequence[str], None],
-        data_arguments: DataArguments,
-        dict_key_or_suffix: str = "holdout",
-        splits_to_keep: Optional[Sequence[str]] = ("test",),
-        **kwargs,
+    eval_task_names: Union[str, None],
+    exclude_task_names: Union[Sequence[str], None],
+    data_arguments: DataArguments,
+    dict_key_or_suffix: str = "holdout",
+    splits_to_keep: Optional[Sequence[str]] = ("test",),
+    **kwargs,
 ) -> Dict:
     if exclude_task_names is None:
         exclude_task_names = []
@@ -130,7 +130,7 @@ def prepare_eval_datasets(
 
 
 def prepare_train_eval_datasets(
-        train_task_names, train_eval_task_file, data_arguments: DataArguments, **kwargs
+    train_task_names, train_eval_task_file, data_arguments: DataArguments, **kwargs
 ):
     # Train_eval datasets; these are the test splits of the training tasks.
     if not data_arguments.use_preserialized:

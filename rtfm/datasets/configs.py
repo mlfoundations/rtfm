@@ -48,11 +48,11 @@ def make_default_config():
 
 class AutoDataSource(OfflineDataSource):
     def __init__(
-            self,
-            name_or_path: str,
-            preprocess_fn=lambda x: x,
-            extension: str = "csv",
-            **kwargs,
+        self,
+        name_or_path: str,
+        preprocess_fn=lambda x: x,
+        extension: str = "csv",
+        **kwargs,
     ):
         self.name_or_path = name_or_path
         if not extension.startswith("."):
@@ -100,11 +100,11 @@ class AutoConfig(TaskConfig):
 
 
 def fetch_dataset_with_default_configs(
-        name: str,
-        cache_dir: str = "tmp",
-        preprocessor_config: Optional[PreprocessorConfig] = None,
-        initialize_data: bool = True,
-        **kwargs,
+    name: str,
+    cache_dir: str = "tmp",
+    preprocessor_config: Optional[PreprocessorConfig] = None,
+    initialize_data: bool = True,
+    **kwargs,
 ) -> Dataset:
     """Get a dataset with the default configuration.
 
@@ -150,13 +150,13 @@ AMLB_TASKS = (
 
 
 def fetch_dataset_from_configs(
-        name: str,
-        task_config: TaskConfig,
-        dataset_config: DatasetConfig,
-        preprocessor_config: Optional[PreprocessorConfig] = None,
-        expt_config: Optional[ExperimentConfig] = None,
-        initialize_data=True,
-        **kwargs,
+    name: str,
+    task_config: TaskConfig,
+    dataset_config: DatasetConfig,
+    preprocessor_config: Optional[PreprocessorConfig] = None,
+    expt_config: Optional[ExperimentConfig] = None,
+    initialize_data=True,
+    **kwargs,
 ) -> Dataset:
     """Fetches a tableshift.core.tabular_dataset.Dataset from the configs.
 

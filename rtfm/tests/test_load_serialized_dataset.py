@@ -42,7 +42,6 @@ class TestLoadSerializedDataset(unittest.TestCase):
             self.tokenizer,
             ["adult"],
             data_arguments=self.data_args,
-            batch_size=16,
             serializer=self.serializer,
         )
         for split, ds in ds_dict.items():
@@ -58,7 +57,6 @@ class TestLoadSerializedDataset(unittest.TestCase):
                 "cars",
             ],
             data_arguments=self.data_args,
-            batch_size=16,
             serializer=self.serializer,
         )
         for split, ds in ds_dict.items():
@@ -71,10 +69,9 @@ class TestLoadSerializedDataset(unittest.TestCase):
             self.tokenizer,
             ["cars"],
             data_arguments=self.data_args,
-            batch_size=16,
-            max_samples=int(1e6),
-            as_iterable=False,
             serializer=self.serializer,
+            as_iterable=False,
+            max_samples=int(1e6),
         )
         for split, ds in ds_dict.items():
             batch = next(iter(ds))

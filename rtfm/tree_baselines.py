@@ -155,13 +155,13 @@ def tune_tabpfn(X_tr, y_tr, n_trials, subsample_features=True):
 
 
 def train_tune_and_compute_metrics(
-        X_tr: pd.DataFrame,
-        y_tr: pd.Series,
-        X_te: pd.DataFrame,
-        y_te: pd.Series,
-        n_trials,
-        model_type: Literal["xgboost", "tabpfn", "logistic_regression"],
-        random_seed: int = None,
+    X_tr: pd.DataFrame,
+    y_tr: pd.Series,
+    X_te: pd.DataFrame,
+    y_te: pd.Series,
+    n_trials,
+    model_type: Literal["xgboost", "tabpfn", "logistic_regression"],
+    random_seed: int = None,
 ) -> Tuple[Any, Dict[str, Any]]:
     if random_seed is not None:
         np.random.seed(random_seed)
@@ -191,7 +191,7 @@ def train_tune_and_compute_metrics(
 
 
 def label_encode_column(
-        train_ser: pd.Series, test_ser: pd.Series
+    train_ser: pd.Series, test_ser: pd.Series
 ) -> Tuple[pd.Series, pd.Series]:
     le = LabelEncoder()
     # Convert the column to string type to handle mixed types
@@ -206,7 +206,7 @@ def label_encode_column(
 def label_encode_train_test(train_df, test_df):
     for column in train_df.columns:
         if train_df[column].dtype == "object" or not pd.api.types.is_numeric_dtype(
-                train_df[column]
+            train_df[column]
         ):
             train_df[column], test_df[column] = label_encode_column(
                 train_df[column], test_df[column]
@@ -216,7 +216,7 @@ def label_encode_train_test(train_df, test_df):
 
 
 def harmonize_series_to_categorical(
-        series1: pd.Series, series2: pd.Series
+    series1: pd.Series, series2: pd.Series
 ) -> (pd.Series, pd.Series):
     """
     Convert two Pandas Series of type 'object' to categorical type with the same category values,
@@ -240,7 +240,7 @@ def harmonize_series_to_categorical(
 
 
 def prepare_xgb_data(
-        dset: tableshift.core.tabular_dataset.Dataset,
+    dset: tableshift.core.tabular_dataset.Dataset,
 ) -> Tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series]:
     X_tr, y_tr, _, _ = dset.get_pandas("train")
     X_te, y_te, _, _ = dset.get_pandas("test")

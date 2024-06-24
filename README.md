@@ -2,7 +2,7 @@
 
 `rtfm` is the library used to train [TabuLa-8B](https://huggingface.co/mlfoundations/tabula-8b),
 a state-of-the-art model for zero- and few-shot tabular data prediction described in our paper
-"Large Scale Transfer Learning for Tabular Data via Language Modeling".
+["Large Scale Transfer Learning for Tabular Data via Language Modeling"](https://arxiv.org/abs/2406.12031).
 
 <div align=center>
 <img alt="few-shot results curve" src="https://github.com/mlfoundations/rtfm/blob/main/assets/all_tasks_curves.png" width=50%>
@@ -143,7 +143,7 @@ and the `test` split comprises only unseen tables.
 Some datasets may be too large to store on disk during training.
 `rtfm` supports using files stored on AWS S3.
 To use files hosted on S3, you need to move the training data there, and update the text files produced
-by `ray_serialize_interleave_and_shuffle.py` to point to the correct location.
+by `serialize_interleave_and_shuffle.py` to point to the correct location.
 You can do this with `sed`, for example,
 the command below will replace the local training location with the s3 path for all lines in a text file:
 
@@ -154,7 +154,7 @@ sed 's|/path/to/sampledata/|s3://rtfm-hub/tablib/serialized/v0-testdata/|g' trai
 ### Using local training data
 
 If you plan to use local data, you can use the files produced as the output
-of `ray_serialize_interleave_and_shuffle.py` (`train-files.txt`, `traineval-files.txt`, `test-files.txt`).
+of `serialize_interleave_and_shuffle.py` (`train-files.txt`, `traineval-files.txt`, `test-files.txt`).
 
 ## 2. Launch a training job.
 
@@ -183,7 +183,7 @@ for more options to control the details of training.
 
 Some additional resources relevant to RTFM:
 
-* Our paper, "Large Scale Transfer Learning for Tabular Data via Language Modeling"
+* Our paper, ["Large Scale Transfer Learning for Tabular Data via Language Modeling"](https://arxiv.org/abs/2406.12031)
 * The [t4 dataset](https://huggingface.co/datasets/mlfoundations/t4-full) on Hugging Face (used to train TabuLa-8B)
 * The TabuLa-8B [evaluation suite data](https://huggingface.co/datasets/mlfoundations/tabula-8b-eval-suite) on Hugging
   Face
