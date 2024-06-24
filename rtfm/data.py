@@ -461,10 +461,8 @@ def load_serialized_dataset(
     serializer: RowSerializer,
     split: str,
     as_iterable: bool,
-    extension=".parquet",
     print_one_example: bool = False,
     cfg: Optional[TLMConfig] = None,
-    **tabular_dataset_kwargs,
 ) -> Union[Dataset, IterableDataset]:
     """Load the serialized HF dataset for a task by fetching the HF dataset and serializing the results.
 
@@ -499,7 +497,6 @@ def load_serialized_interleaved_dataset(
     serializer: RowSerializer,
     as_iterable: bool,
     split="train",
-    extension=".parquet",
     print_one_example=False,
 ) -> Union[Dataset, IterableDataset]:
     """Serialize and interleave the examples from task_names.
@@ -520,7 +517,6 @@ def load_serialized_interleaved_dataset(
                 data_args=data_args,
                 serializer=serializer,
                 split=split,
-                extension=extension,
                 as_iterable=as_iterable,
                 print_one_example=print_one_example,
             )
