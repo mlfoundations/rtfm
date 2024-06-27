@@ -6,7 +6,7 @@ To run tests: python -m unittest rtfm/tests/test_evaluators.py -v
 """
 import unittest
 
-from rtfm.evaluation.evaluators import parse_generated_text
+from rtfm.generation_utils import parse_generated_text
 from rtfm.special_tokens import QA_SEP_TOKEN, EOC_TOKEN
 
 

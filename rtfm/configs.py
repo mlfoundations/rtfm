@@ -25,7 +25,6 @@ class TrainConfig(train_config):
     shuffle_random_seed: int = 42
     eval_open_vocabulary: bool = True
     eval_closed_vocabulary: bool = False
-    per_device_eval_batch_size: int = 1
     run_name: str = field(default_factory=lambda: str(int(time.time())))
     eval_max_samples: Optional[int] = 1024
     report_to: Sequence[Any] = field(default_factory=lambda: tuple())

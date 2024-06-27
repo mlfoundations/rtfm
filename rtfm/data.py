@@ -6,7 +6,7 @@ import re
 from collections import defaultdict
 from dataclasses import dataclass
 from functools import partial
-from typing import Dict, Sequence, List, Union, Optional, Any
+from typing import Dict, Sequence, List, Union, Optional, Any, Tuple
 
 import numpy as np
 import pandas as pd
@@ -368,23 +368,7 @@ def build_formatted_df_from_file(file, data_args: DataArguments) -> pd.DataFrame
     return df_out
 
 
-def load_uncached_hf_dataset(
-    task: str, split: str, data_args: DataArguments, as_iterable: bool
-) -> Union[Dataset, IterableDataset]:
-    preprocessor_config = fetch_preprocessor_config_from_data_args(data_args, task)
-    if data_args.from_files:
-        df = build_formatted_df_from_file(task, data_args)
-    else:
-        tabular_dataset = get_task_dataset(
-            task, cache_dir=data_args.cache_dir, preprocessor_config=preprocessor_config
-        )
-        info = get_dataset_info(tabular_dataset)
-        df = build_formatted_df(
-            tabular_dataset._get_split_df(split),
-            info,
-            data_args,
-        )
-
+def prepare_hf_dataset_from_formatted_df(df, as_iterable: bool):
     records = df.to_dict(orient="records")
 
     def _gen():
@@ -396,6 +380,26 @@ def load_uncached_hf_dataset(
 
     else:
         return datasets.Dataset.from_generator(_gen)
+
+
+def load_uncached_hf_dataset(
+    task: str, split: str, data_args: DataArguments, as_iterable: bool
+) -> Union[Dataset, IterableDataset]:
+    preprocessor_config = fetch_preprocessor_config_from_data_args(data_args, task)
+    if data_args.from_files:
+        df = build_formatted_df_from_file(task, data_args)
+    else:
+        tabular_dataset = get_task_dataset(
+            task, preprocessor_config=preprocessor_config
+        )
+        info = get_dataset_info(tabular_dataset)
+        df = build_formatted_df(
+            tabular_dataset._get_split_df(split),
+            info,
+            data_args,
+        )
+
+    return prepare_hf_dataset_from_formatted_df(df, as_iterable)
 
 
 def example_map_fn(
@@ -455,6 +459,23 @@ def example_map_fn(
     return preprocessed
 
 
+def serialize_dataset_fn(
+    dataset: Union[Dataset, IterableDataset],
+    data_args: DataArguments,
+    serializer: RowSerializer,
+    cfg: Optional[TLMConfig] = None,
+):
+    """Take a raw HF dataset and apply serialization to it."""
+    _map_fn = partial(
+        example_map_fn,
+        data_args=data_args,
+        serializer=serializer,
+        cfg=cfg,
+    )
+    dataset = dataset.map(_map_fn).select_columns(["text", "class_label_as_text"])
+    return dataset
+
+
 def load_serialized_dataset(
     task,
     data_args: DataArguments,
@@ -478,13 +499,7 @@ def load_serialized_dataset(
     if not cfg and not data_args.from_files:
         cfg = get_tlm_config(task, override_config=data_args.task_config)
 
-    _map_fn = partial(
-        example_map_fn,
-        data_args=data_args,
-        serializer=serializer,
-        cfg=cfg,
-    )
-    dataset = dataset.map(_map_fn).select_columns(["text", "class_label_as_text"])
+    dataset = serialize_dataset_fn(dataset, data_args, serializer, cfg)
 
     if print_one_example:
         print(f"printing one example from {task}/{split}: {next(iter(dataset))}")
@@ -715,13 +730,58 @@ def pack_samples(
     }
 
 
-def make_few_shot(
+def make_few_shot_sample(
+    shots: Union[List[Tuple[torch.Tensor, torch.Tensor]], None],
+    target_sample: Tuple[torch.Tensor, torch.Tensor],
+    max_len: int,
+    trim_extra_bos_tokens: bool = True,
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """Build an (input_ids, targets) tuple from a set of shots and a target sample.
+
+    Both the shots and the target_sample should be tokenized instances from a dataset.
+    """
+    if shots is None:
+        shots = []
+
+    input_ids_tensors = []
+    labels_tensors = []
+
+    for i in range(len(shots)):
+        input_ids, labels = shots[i]
+
+        if trim_extra_bos_tokens and i > 0:
+            input_ids = input_ids[1:]  # drop BOS token except for the first sample
+            labels = labels[1:]
+
+        input_ids_tensors.append(input_ids)
+        labels_tensors.append(torch.full_like(labels, IGNORE_INDEX))
+
+    target_input_ids, target_labels = target_sample
+
+    if trim_extra_bos_tokens and len(shots):
+        target_input_ids = target_input_ids[1:]  # also trim the BOS token if necessary
+        target_labels = target_labels[1:]
+
+    input_ids_tensors.append(target_input_ids)
+    labels_tensors.append(target_labels)
+
+    # Concatenate and trim
+    input_ids = torch.cat(input_ids_tensors, dim=0)
+    input_ids = input_ids[:max_len]
+    labels = torch.cat(labels_tensors, dim=0)
+    labels = labels[:max_len]
+
+    return input_ids, labels
+
+
+def make_few_shot_from_labeled_batch(
     batch: Dict[str, List[torch.Tensor]],
     max_len: int,
     trim_extra_bos_tokens: bool = True,
 ) -> Dict[str, List[torch.Tensor]]:
     """
-    Pack a set of samples into a few-shot example, where each dictionary in the returned list
+    Pack a set of samples (where every instance has a ground-truth label)
+    into a few-shot example, where each dictionary in the returned list
     ends with a different sample in the batch as the target.
     """
     assert len(batch["input_ids"]) == len(
@@ -732,52 +792,67 @@ def make_few_shot(
     results = defaultdict(list)
 
     for target_sample_idx in range(batch_size):
-        input_ids_tensors = []
-        labels_tensors = []
-
         # For every sample, ensure the shots are in a different random order
         idxs_shuffled = random.sample(range(batch_size), batch_size)
 
-        # Add all other samples first
-        for i in idxs_shuffled:
-            if i == target_sample_idx:
-                continue  # Skip the target sample; it will be added last
+        # Prepare the shots as a list of [(input_ids, labels) tuples.
+        shots: List[Tuple[torch.Tensor, torch.Tensor]] = [
+            (
+                maybe_cast_to_tensor(batch["input_ids"][i]),
+                maybe_cast_to_tensor(batch["labels"][i]),
+            )
+            for i in idxs_shuffled
+            if i != target_sample_idx
+        ]
 
-            input_ids = maybe_cast_to_tensor(batch["input_ids"][i])
-            labels = maybe_cast_to_tensor(batch["labels"][i])
-
-            if trim_extra_bos_tokens and i > 0:
-                input_ids = input_ids[1:]  # drop BOS token except for the first sample
-                labels = labels[1:]
-
-            input_ids_tensors.append(input_ids)
-            labels_tensors.append(torch.full_like(labels, IGNORE_INDEX))
-
-        # Now add the target sample last
-        target_input_ids = maybe_cast_to_tensor(
-            batch["input_ids"][target_sample_idx]
-        ).long()
-        target_labels = maybe_cast_to_tensor(batch["labels"][target_sample_idx]).long()
-        if trim_extra_bos_tokens and target_sample_idx > 0:
-            target_input_ids = target_input_ids[
-                1:
-            ]  # also trim the BOS token if necessary
-            target_labels = target_labels[1:]
-
-        input_ids_tensors.append(target_input_ids)
-        labels_tensors.append(target_labels)
-
-        # Concatenate and trim
-        input_ids = torch.cat(input_ids_tensors, dim=0)
-        input_ids = input_ids[:max_len]
-        labels = torch.cat(labels_tensors, dim=0)
-        labels = labels[:max_len]
+        # Prepare target sample with the same format as the elements of shots.
+        target_sample: Tuple[torch.Tensor, torch.Tensor] = (
+            maybe_cast_to_tensor(batch["input_ids"][target_sample_idx]).long(),
+            maybe_cast_to_tensor(batch["labels"][target_sample_idx]).long(),
+        )
 
         # Store in the results list
+        input_ids, labels = make_few_shot_sample(
+            shots,
+            target_sample,
+            max_len=max_len,
+            trim_extra_bos_tokens=trim_extra_bos_tokens,
+        )
         results["input_ids"].append(input_ids)
         results["labels"].append(labels)
 
     return results
+
+
+def tokenize_ds(
+    ds: Union[Dataset, IterableDataset],
+    tokenizer,
+    data_arguments: DataArguments,
+):
+    """Tokenize a dataset."""
+    _batch_tokenize_fn = partial(
+        tokenize_batch,
+        tokenizer=tokenizer,
+        data_arguments=data_arguments,
+    )
+    return ds.map(
+        _batch_tokenize_fn,
+        batched=True,
+        batch_size=data_arguments.tokenize_fn_batch_size,
+    )
+
+
+def tokenize_ds_dict(
+    ds_dict: Dict[str, Union[Dataset, IterableDataset]],
+    tokenizer,
+    data_arguments: DataArguments,
+):
+    """Tokenize a dataset dictionary."""
+
+    return {
+        split: tokenize_ds(ds, tokenizer=tokenizer, data_arguments=data_arguments)
+        for split, ds in ds_dict.items()
+    }
 
 
 def tokenize_and_preprocess_ds_dict(
@@ -802,19 +877,10 @@ def tokenize_and_preprocess_ds_dict(
         split: ds.map(add_qa_and_eoc_tokens_to_example) for split, ds in ds_dict.items()
     }
 
-    _batch_tokenize_fn = partial(
-        tokenize_batch,
-        tokenizer=tokenizer,
-        data_arguments=data_arguments,
+    tokenized_ds_dict = tokenize_ds_dict(
+        ds_dict, tokenizer=tokenizer, data_arguments=data_arguments
     )
-    tokenized_ds_dict = {
-        split: ds.map(
-            _batch_tokenize_fn,
-            batched=True,
-            batch_size=data_arguments.tokenize_fn_batch_size,
-        )
-        for split, ds in ds_dict.items()
-    }
+
     if is_train and data_arguments.pack_samples:
         tokenized_ds_dict = {
             split: ds.map(
@@ -831,7 +897,7 @@ def tokenize_and_preprocess_ds_dict(
     elif data_arguments.num_shots:
         tokenized_ds_dict = {
             split: ds.select_columns(["input_ids", "labels"]).map(
-                make_few_shot,
+                make_few_shot_from_labeled_batch,
                 batched=True,
                 batch_size=data_arguments.num_shots + 1,
                 fn_kwargs={
@@ -1028,7 +1094,7 @@ def load_and_tokenize_preserialized_wds(
             "labels": [x["labels"][0] for x in samples],
             "__key__": [x["__key__"] for x in samples],
         }
-        processed = make_few_shot(
+        processed = make_few_shot_from_labeled_batch(
             batch,
             tokenizer.model_max_length,
             trim_extra_bos_tokens=data_arguments.trim_extra_bos_tokens,

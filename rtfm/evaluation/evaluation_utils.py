@@ -13,7 +13,7 @@ from rtfm.data import (
     load_tokenize_and_serialize_tabular_dataset,
     load_and_tokenize_preserialized_dataset,
 )
-from rtfm.evaluation.evaluators import parse_generated_text
+from rtfm.generation_utils import parse_generated_text
 from rtfm.utils import get_task_names_list
 
 
@@ -68,7 +68,6 @@ def prepare_eval_kwargs(
     if not data_arguments.use_preserialized:
         eval_dataset_kwargs.update(
             {
-                "batch_size": train_config.per_device_eval_batch_size,
                 "serializer": eval_serializer,
                 "splits": splits_to_keep,
                 "print_one_example": accelerator.is_main_process

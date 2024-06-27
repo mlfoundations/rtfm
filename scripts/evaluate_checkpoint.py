@@ -21,7 +21,7 @@ from rtfm.evaluation.evaluation_utils import (
 from rtfm.evaluation.evaluators import build_evaluators, ClosedVocabularyEvaluator
 from rtfm.serialization.serializers import get_serializer
 from rtfm.task_config import get_tlm_config
-from rtfm.tokenization.text import sanity_check_tokenizer
+from rtfm.tokenization.text import sanity_check_tokenizer, prepare_tokenizer
 from rtfm.train_utils import load_model_from_checkpoint
 from rtfm.utils import get_task_names_list, initialize_dir, get_latest_checkpoint
 
@@ -43,21 +43,21 @@ transformers.logging.set_verbosity_info()
 
 
 def main(
-        data_arguments: DataArguments,
-        train_config: TrainConfig,
-        tokenizer_config: TokenizerConfig,
-        outfile: str,
-        split: str,
-        eval_task_names: Optional[str] = None,
-        eval_task_file: Optional[str] = None,
-        use_fast_kernels: bool = False,
-        overwrite: bool = False,
+    data_arguments: DataArguments,
+    train_config: TrainConfig,
+    tokenizer_config: TokenizerConfig,
+    outfile: str,
+    split: str,
+    eval_task_names: Optional[str] = None,
+    eval_task_file: Optional[str] = None,
+    use_fast_kernels: bool = False,
+    overwrite: bool = False,
 ):
     if os.path.exists(outfile) and not overwrite:
         logging.warning(f"file {outfile} already exists; skipping evaluation.")
         return
     assert not (
-            eval_task_names and eval_task_file
+        eval_task_names and eval_task_file
     ), "specify either eval_task_names or eval_task_file, not both."
 
     assert (
@@ -90,7 +90,6 @@ def main(
         feature_dropout_prob=0.0,
         meta_features=None,
     )
-    from rtfm.tokenization.text import prepare_tokenizer
 
     tokenizer, model = prepare_tokenizer(
         model,
@@ -157,7 +156,7 @@ def main(
 
         for evaluator in evaluators:
             if data_arguments.use_config and isinstance(
-                    evaluator, ClosedVocabularyEvaluator
+                evaluator, ClosedVocabularyEvaluator
             ):
                 eval_task_config = get_tlm_config(
                     eval_task_name.replace("_holdout", "")
@@ -209,7 +208,7 @@ if __name__ == "__main__":
     )
 
     parser.add_argument("--eval-task-file", type=str, default=None)
-    parser.add_argument('--overwrite', action='store_true')
+    parser.add_argument("--overwrite", action="store_true")
 
     parser.add_argument(
         "--split",

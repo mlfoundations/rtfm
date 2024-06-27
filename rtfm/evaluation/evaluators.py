@@ -2,7 +2,7 @@ import logging
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Union, Sequence, Optional, Dict, Any, List, Tuple
+from typing import Union, Sequence, Optional, Dict, Any, List
 
 import numpy as np
 import pandas as pd
@@ -14,15 +14,19 @@ import transformers
 import wandb
 import webdataset as wds
 from accelerate import Accelerator
-from accelerate.utils import is_xpu_available
 from datasets import IterableDataset, Dataset
 from einops import repeat
 from tqdm import tqdm
 
 import rtfm.data
 from rtfm.configs import TrainConfig
-from rtfm.generation_utils import KeywordsStoppingCriteria
-from rtfm.special_tokens import EOC_TOKEN, QA_SEP_TOKEN
+from rtfm.generation_utils import (
+    make_eoc_stopping_criterion,
+    prepare_input_ids_and_attention_mask_for_generation,
+    parse_generated_text,
+)
+from rtfm.special_tokens import EOC_TOKEN
+from rtfm.torch_utils import batch_to_xpu
 from rtfm.utils import timestamp
 
 
@@ -79,9 +83,6 @@ class OpenVocabularyEvaluator(Evaluator):
         del labels
         del normalize_length
 
-        assert (
-            train_config.per_device_eval_batch_size == 1
-        ), "Only batch size of 1 is currently supported due to issues with batched generation."
         data_collator = rtfm.data.DataCollatorForSupervisedDataset(tokenizer)
 
         all_preds = []
@@ -129,7 +130,7 @@ class OpenVocabularyEvaluator(Evaluator):
             )
             else dataset.with_format("torch"),
             collate_fn=data_collator,
-            batch_size=train_config.per_device_eval_batch_size,
+            batch_size=1,
         )
 
         log_preds = train_config.eval_upload_predictions != "no"
@@ -145,26 +146,18 @@ class OpenVocabularyEvaluator(Evaluator):
             loader, desc="eval_open_vocab", total=train_config.eval_max_samples
         ):
             with torch.no_grad():
-                if is_xpu_available():
-                    batch = {k: v.to("xpu") for k, v in batch.items()}
-                elif torch.cuda.is_available():
-                    batch = {k: v.to("cuda") for k, v in batch.items()}
-                input_ids = batch["input_ids"]
-
+                batch = batch_to_xpu(batch)
                 assert (
-                    len(input_ids) == 1
+                    len(batch["input_ids"]) == 1
                 ), "only batch size of 1 is supported for evals."
 
                 # Cut off the input_ids before the labels begin to prevent leakage in generate().
-                labels_start_pos = torch.where(batch["labels"] != -100)[1][0]
-                input_ids = input_ids[:, :labels_start_pos]
-                attention_mask = batch["attention_mask"][:, :labels_start_pos]
+                (
+                    input_ids,
+                    attention_mask,
+                ) = prepare_input_ids_and_attention_mask_for_generation(batch)
 
-                stopping_criterion = KeywordsStoppingCriteria(
-                    keywords=[EOC_TOKEN],
-                    input_ids=input_ids,
-                    tokenizer=tokenizer,
-                )
+                stopping_criterion = make_eoc_stopping_criterion(input_ids, tokenizer)
 
                 available_context_window_tokens = tokenizer.model_max_length - len(
                     input_ids
@@ -402,34 +395,6 @@ def _log_preds(
     else:
         logging.info(f"predictions and results for {wandb_logging_prefix}:\n{df}")
     return
-
-
-def parse_generated_text(text: str) -> Tuple[str, bool]:
-    """Return the parsed text, and a boolean indicating whether the completion is valid.
-
-    Currently, the only invalid completions are ones where there is no EOC_TOKEN following the final QA_SEP_TOKEN;
-     in this case this function returns everything after the final QA_SEP_TOKEN.
-
-    Raises ValueError if the text does not contain QA_SEP_TOKEN.
-    """
-    if QA_SEP_TOKEN not in text:
-        raise ValueError(
-            f"Invalid QA text: {text}; must contain QA_SEP_TOKEN {QA_SEP_TOKEN}"
-        )
-
-    full_completion = text.rsplit(QA_SEP_TOKEN, maxsplit=1)[1]
-
-    if not EOC_TOKEN in full_completion:
-        logging.debug(
-            "EOC token %s not detected in generated text %s"
-            % (EOC_TOKEN, full_completion)
-        )
-        return full_completion, False
-
-    parsed_completion = full_completion.split(EOC_TOKEN, maxsplit=1)[0]
-    if not parsed_completion:
-        logging.warning(f"got empty completion after parsing from text {text}")
-    return parsed_completion.strip(), True
 
 
 def get_class_logprobs(

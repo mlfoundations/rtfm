@@ -12,9 +12,7 @@ from rtfm.datasets.configs import (
 
 def get_task_dataset(
     task,
-    cache_dir,
     preprocessor_config=None,
-    use_cached=False,
     initialize_data=True,
     tabular_dataset_kwargs: Dict[str, Any] = None,
 ) -> tableshift.core.tabular_dataset.Dataset:
@@ -23,8 +21,8 @@ def get_task_dataset(
     try:
         tabular_dataset = get_iid_dataset(
             task,
-            cache_dir=cache_dir,
-            use_cached=use_cached,
+            cache_dir="tmp",
+            use_cached=False,
             preprocessor_config=preprocessor_config,
             grouper=None,
             initialize_data=initialize_data,
@@ -37,8 +35,6 @@ def get_task_dataset(
 
         tabular_dataset = fetch_dataset_with_default_configs(
             task,
-            cache_dir=cache_dir,
-            use_cached=use_cached,
             preprocessor_config=preprocessor_config,
             grouper=None,
             initialize_data=initialize_data,

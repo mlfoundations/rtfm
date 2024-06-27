@@ -101,7 +101,6 @@ class AutoConfig(TaskConfig):
 
 def fetch_dataset_with_default_configs(
     name: str,
-    cache_dir: str = "tmp",
     preprocessor_config: Optional[PreprocessorConfig] = None,
     initialize_data: bool = True,
     **kwargs,
@@ -117,6 +116,9 @@ def fetch_dataset_with_default_configs(
     your intent is to somehow modify the task (in which case,
     you should call fetch_dataset_from_configs() directly).
     """
+    cache_dir = os.environ["USER_CONFIG_DIR"]
+    logging.warning(f"loading task {name} config from {cache_dir}")
+
     # TaskConfig
     task_config = get_task_config(name, cache_dir=cache_dir)
 
