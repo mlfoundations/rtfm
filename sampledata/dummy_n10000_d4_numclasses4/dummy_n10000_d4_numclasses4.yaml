@@ -1,0 +1,9 @@
+label_values:
+- 3.0
+- 2.0
+- 1.0
+- 0.0
+labels_mapping: null
+prefix: Predict the value of target
+suffix: What is the value of target?
+task_context: null
