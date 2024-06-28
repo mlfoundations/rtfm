@@ -97,8 +97,6 @@ def infer_on_example(
             "target samples do not contain the target column at all."
         )
         target_example[target_colname] = np.nan
-    else:
-        target_example.pop(target_colname)
 
     if is_fewshot:
         assert target_colname in labeled_examples.columns, (
