@@ -3,11 +3,11 @@ Tests for inference.
 
 To run tests: python -m unittest rtfm/tests/test_inference.py -v
 """
+import logging
 import unittest
 from dataclasses import dataclass
 from typing import List
 
-import einops
 import numpy as np
 import pandas as pd
 import torch
@@ -16,10 +16,13 @@ from tqdm import tqdm
 from transformers import AutoTokenizer
 
 from rtfm.configs import TrainConfig, TokenizerConfig
-from rtfm.inference_utils import infer_on_example
+from rtfm.inference_utils import infer_on_example, InferenceModel
 from rtfm.serialization.serializers import get_serializer
 from rtfm.special_tokens import EOC_TOKEN
 from rtfm.tokenization.text import prepare_tokenizer
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 
 @dataclass
@@ -38,7 +41,7 @@ class FixedResponseDummyModel:
 
 
 class TestInferenceTinyLlama(unittest.TestCase):
-    """Test inference with a tiny llama model.
+    """Test inference with a small random-init llama model.
 
     This is an integration test - it will only verify that no exceptions/errors are raised.
     """
@@ -84,9 +87,9 @@ class TestInferenceTinyLlama(unittest.TestCase):
             model=self.model,
             tokenizer=self.tokenizer,
             serializer=self.serializer,
+            target_example=target_example,
             target_colname="y",
             target_choices=["0", "1"],
-            target_example=target_example,
             labeled_examples=labeled_examples,
             handle_invalid_predictions="warn",
         )
@@ -106,9 +109,9 @@ class TestInferenceTinyLlama(unittest.TestCase):
             model=self.model,
             tokenizer=self.tokenizer,
             serializer=self.serializer,
+            target_example=target_example,
             target_colname="y",
             target_choices=["0", "1"],
-            target_example=target_example,
             labeled_examples=labeled_examples,
             handle_invalid_predictions="warn",
         )
@@ -127,12 +130,38 @@ class TestInferenceTinyLlama(unittest.TestCase):
             model=self.model,
             tokenizer=self.tokenizer,
             serializer=self.serializer,
+            target_example=target_example,
             target_colname="y",
             target_choices=["0", "1"],
-            target_example=target_example,
             labeled_examples=None,
             handle_invalid_predictions="warn",
         )
+
+    def test_raises_too_many_target_samples(self):
+        """Test that infer_on_example raises exception when trying to predict with >1 sample."""
+        target_examples = pd.DataFrame(
+            [
+                {
+                    "X1": 1,
+                    "X2": 0,
+                },
+                {
+                    "X1": 0,
+                    "X2": 0,
+                },
+            ]
+        )
+        with self.assertRaises(ValueError):
+            output = infer_on_example(
+                model=self.model,
+                tokenizer=self.tokenizer,
+                serializer=self.serializer,
+                target_example=target_examples,
+                target_colname="y",
+                target_choices=["0", "1"],
+                labeled_examples=None,
+                handle_invalid_predictions="warn",
+            )
 
 
 class TestInferenceDummyModel(unittest.TestCase):
@@ -194,9 +223,97 @@ class TestInferenceDummyModel(unittest.TestCase):
                 model=self.model,
                 tokenizer=self.tokenizer,
                 serializer=self.serializer,
+                target_example=target_example,
                 target_colname=target_colname,
                 target_choices=df[target_colname].unique().tolist(),
+                labeled_examples=labeled_examples,
+                handle_invalid_predictions="warn",
+            )
+            preds.append(output)
+            labels.append(target_example[target_colname].item())
+        print(np.mean([x == str(y) for x, y in zip(preds, labels)]))
+        np.testing.assert_allclose(
+            np.mean([x == str(y) for x, y in zip(preds, labels)]),
+            0.25,
+            atol=0.01,
+            rtol=0.04,
+        )
+
+
+class TestInferenceHelperTinyLlama(TestInferenceTinyLlama):
+    """Test the InferenceHelper wrapper class with a small random-init llama model."""
+
+    def setUp(self):
+        super().setUp()
+        self.inference_model = InferenceModel(
+            model=self.model, tokenizer=self.tokenizer, serializer=self.serializer
+        )
+
+    def test_inference_zero_shot(self):
+        """Test inference with tiny llama 2 model (zero-shot)."""
+        target_example = pd.DataFrame(
+            [
+                {
+                    "X1": 1,
+                    "X2": 0,
+                },
+            ]
+        )
+        output = self.inference_model.predict(
+            target_example=target_example,
+            target_colname="y",
+            target_choices=["0", "1"],
+            labeled_examples=None,
+            handle_invalid_predictions="warn",
+        )
+
+    def test_inference_few_shot(self):
+        """Test inference with tiny llama 2 model (few-shot),
+        where the target example does not contain the target column."""
+        labeled_examples = pd.DataFrame(
+            [{"X1": 1, "X2": 0, "y": 0}, {"X1": 1, "X2": 1, "y": 1}]
+        )
+        target_example = pd.DataFrame(
+            [
+                {"X1": 1, "X2": 0},
+            ]
+        )
+        output = self.inference_model.predict(
+            target_example=target_example,
+            target_colname="y",
+            target_choices=["0", "1"],
+            labeled_examples=labeled_examples,
+            handle_invalid_predictions="warn",
+        )
+
+
+class TestInferenceHelperDummyModel(TestInferenceDummyModel):
+    """Test the InferenceHelper wrapper class with a dummy model."""
+
+    def setUp(self):
+        super().setUp()
+        self.inference_model = InferenceModel(
+            model=self.model, tokenizer=self.tokenizer, serializer=self.serializer
+        )
+
+    def test_inference_few_shot(self, num_shots=10, num_iters=512):
+        """Test inference with tiny llama 2 model (few-shot)."""
+        df = pd.read_csv(
+            "sampledata/dummy_n10000_d4_numclasses4/dummy_n10000_d4_numclasses4.csv"
+        )
+        preds = []
+        labels = []
+
+        # iterate over random data and verify the output matches expected proportion.
+        for i in tqdm(range(num_iters), desc="infer with dummy model", total=num_iters):
+            labeled_examples = df.drop([i]).sample(num_shots)
+            target_example = pd.DataFrame([df.iloc[i]])
+
+            target_colname = "target"
+            output = self.inference_model.predict(
                 target_example=target_example,
+                target_colname=target_colname,
+                target_choices=df[target_colname].unique().tolist(),
                 labeled_examples=labeled_examples,
                 handle_invalid_predictions="warn",
             )

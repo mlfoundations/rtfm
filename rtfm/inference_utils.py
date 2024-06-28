@@ -1,9 +1,11 @@
 import json
 import logging
-from typing import List, Optional, Literal
+from dataclasses import dataclass
+from typing import List, Optional, Literal, Any
 
 import numpy as np
 import pandas as pd
+import transformers
 from datasets.utils.logging import (
     disable_progress_bar,
     enable_progress_bar,
@@ -41,22 +43,52 @@ def prepare_dataframe(
 
 
 def infer_on_example(
-    model,
+    model: transformers.AutoModelForCausalLM,
     tokenizer,
     serializer: RowSerializer,
-    target_colname: str,
-    target_choices: List[str],
     target_example: pd.DataFrame,
+    target_colname: str,
+    target_choices: List[Any],
     labeled_examples: Optional[pd.DataFrame] = None,
     max_new_tokens: Optional[int] = None,
     cfg: Optional[TLMConfig] = None,
     handle_invalid_predictions: Literal["raise", "warn", None] = "raise",
 ) -> str:
-    # TODO(jpgard): add detailed docstring.
+    """
+
+    :param model: the model to perform inference with.
+    :param tokenizer: the tokenizer to use. Note that if you are using a base model
+    (i.e. the Llama 3-8B), you should NOT add special tokens to the tokenizer,
+    as these need to be learned during fine-tuning (set add_special_tokens=False
+    in rtfm.tokenization.text.prepare_tokenizer()).
+    :param serializer: the serializer to use. This should be the same serializer
+    used when fine-tuning the model. We recommend the use of BasicSerializerV2,
+    as this is the serializer used for all of our public releases (i.e. TabuLa-8B).
+    :param target_example: a single-row DataFrame to predict on. This DataFrame can
+    optionally include the target column (in which case it will be ignored).
+    :param target_colname: the name of the target column to predict. This column should
+    be present in the few-shot examples.
+    :param target_choices: a list of potential choices for the target column. The objects
+    can be of any type castable to string. For the most reliable performance we suggest
+    explicitly casting to strings.
+    :param labeled_examples: DataFrame of "shots" to use when making predictions.
+    These examples will be included in the exact order they are provided.
+    :param max_new_tokens: maximum number of new tokens to generate. Note that this
+    should be enough to cover any of the potential target classes, and the <|endcompletion|>
+    token. If None, no limit is enforced. Note that generation automatically terminates
+    once the <|endcompletion|> token is generated.
+    :param cfg: an optional TLMConfig object. Use this to provide finer-grained control
+    over the serialization.
+    :param handle_invalid_predictions: How to handle invalid predictions from the model.
+    If "raise", an exception is raised; if "warn", a warning is logged; if None
+    the function returns the invalid completion as if it were a valid completion.
+    :return: a string containing the prediction.
+    """
     is_fewshot = labeled_examples is not None
     disable_progress_bar()
 
-    assert len(target_example) == 1, "Only use one example at a time for inference."
+    if len(target_example) != 1:
+        raise ValueError("Only use one example at a time for inference.")
     if target_colname not in target_example.columns:
         logging.warning(
             f"Column {target_colname} is not in target example; "
@@ -65,6 +97,9 @@ def infer_on_example(
             "target samples do not contain the target column at all."
         )
         target_example[target_colname] = np.nan
+    else:
+        target_example.pop(target_colname)
+
     if is_fewshot:
         assert target_colname in labeled_examples.columns, (
             f"Expected column {target_colname} "
@@ -202,4 +237,38 @@ def infer_on_example(
     else:
         raise ValueError(
             f"unknown value for handle_invalid_predictions: {handle_invalid_predictions}"
+        )
+
+
+@dataclass
+class InferenceModel:
+    """Wrapper to support easy inference.
+
+    This class holds a model, tokenizer, and serializer, and uses them for
+    inference on tabular data.
+
+    Note that this is a convenience wrapper around infer_on_example(); if you prefer
+    the same functionality can be achieved by calling infer_on_example() directly
+    and passing the model, tokenizer, and serializer as additional parameters
+    to infer_on_example()."""
+
+    model: transformers.AutoModelForCausalLM
+    tokenizer: transformers.PreTrainedTokenizer
+    serializer: RowSerializer
+
+    def predict(
+        self,
+        target_example: pd.DataFrame,
+        target_colname: str,
+        target_choices: List[str],
+        **kwargs,
+    ):
+        return infer_on_example(
+            model=self.model,
+            tokenizer=self.tokenizer,
+            serializer=self.serializer,
+            target_example=target_example,
+            target_colname=target_colname,
+            target_choices=target_choices,
+            **kwargs,
         )
