@@ -269,6 +269,7 @@ def main(
             )
             if train_config.low_cpu_fsdp and rank != 0
             else None,
+            use_orig_params=train_config.torch_compile,
         )
         if fsdp_config.fsdp_activation_checkpointing:
             apply_fsdp_checkpointing(model)
