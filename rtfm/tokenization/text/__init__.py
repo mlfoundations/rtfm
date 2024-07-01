@@ -25,7 +25,7 @@ def fetch_tokenizer(
         "use_auth_token": use_auth_token,
         "use_fast": use_fast_tokenizer,
     }
-    print(f"fetching tokenizer with kwargs {tokenizer_kwargs}")
+
     return transformers.AutoTokenizer.from_pretrained(**tokenizer_kwargs)
 
 
