@@ -5,7 +5,7 @@ from typing import Optional
 import pandas as pd
 from tableshift.core.features import FeatureList
 
-from rtfm.data_sources.unipredict import format_target_column
+from rtfm.serialization.serialization_utils import discretize_continuous_column
 from rtfm.task_config import TLMConfig
 
 
@@ -47,7 +47,7 @@ def generate_files_from_csv(
 
     if to_regression:
         print(f"[INFO] converting target column {target_colname} to binned regression")
-        df[target_colname] = format_target_column(df[target_colname])
+        df[target_colname] = discretize_continuous_column(df[target_colname])
 
     fl = FeatureList.from_dataframe(df, target_colname)
 

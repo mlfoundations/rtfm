@@ -321,11 +321,11 @@ def build_formatted_df_from_file(file, data_args: DataArguments) -> pd.DataFrame
     if all(is_numeric(x) for x in target_candidates_and_unique_values[target]):
         num_buckets = np.random.randint(2, 9)
         # case: this is a continuous column; discretize it.
-        from rtfm.data_sources.unipredict import format_target_column
+        from rtfm.serialization.serialization_utils import discretize_continuous_column
 
         # TODO(jpgard): currently the below will fail with an AssertionError
         #  for columns where is_numeric(x) is True but pd.api.types.is_numeric_dtype(x) is False.
-        df[target] = format_target_column(df[target], num_buckets=num_buckets)
+        df[target] = discretize_continuous_column(df[target], num_buckets=num_buckets)
         target_candidates_and_unique_values[target] = (
             df[target].apply(make_object_json_serializable).unique()
         )
