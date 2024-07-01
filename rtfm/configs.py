@@ -28,6 +28,9 @@ class TrainConfig(train_config):
     run_name: str = field(default_factory=lambda: str(int(time.time())))
     eval_max_samples: Optional[int] = 1024
     report_to: Sequence[Any] = field(default_factory=lambda: tuple())
+    # torch.compile args
+    torch_compile: bool = False
+    torch_compile_fullgraph: bool = True  # set to False if graph is not static.
 
 
 @dataclass

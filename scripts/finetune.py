@@ -81,13 +81,13 @@ def safe_setup():
 
 
 def main(
-        train_config: TrainConfig,
-        fsdp_config: FsdpConfig,
-        lora_config: LoraConfig,
-        data_arguments: DataArguments,
-        tokenizer_config: TokenizerConfig,
-        train_task_file: str,
-        eval_task_file: Optional[str] = None,
+    train_config: TrainConfig,
+    fsdp_config: FsdpConfig,
+    lora_config: LoraConfig,
+    data_arguments: DataArguments,
+    tokenizer_config: TokenizerConfig,
+    train_task_file: str,
+    eval_task_file: Optional[str] = None,
 ):
     data_arguments_defaults = {
         "use_preserialized": True,
@@ -217,8 +217,8 @@ def main(
             wandb_run.config.update(peft_config)
 
     if (
-            fsdp_config.hsdp
-            and fsdp_config.sharding_strategy == ShardingStrategy.HYBRID_SHARD
+        fsdp_config.hsdp
+        and fsdp_config.sharding_strategy == ShardingStrategy.HYBRID_SHARD
     ):
         hsdp_device_mesh = make_hsdp_device_mesh(
             replica_group_size=fsdp_config.replica_group_size,
@@ -364,7 +364,7 @@ def main(
         if train_config.warmup_steps
         else int(train_config.warmup_ratio * train_config.max_steps),
         num_training_steps=train_config.max_steps
-                           // train_config.gradient_accumulation_steps,
+        // train_config.gradient_accumulation_steps,
     )
 
     if train_config.resume:
@@ -387,6 +387,14 @@ def main(
         global_step += 1
     else:
         global_step = 0
+
+    if train_config.torch_compile:
+        print("compiling with torch.compile()")
+        model = torch.compile(
+            model,
+            fullgraph=train_config.torch_compile_fullgraph,
+        )
+        print("compiling with torch.compile() complete")
 
     # Start the training process
     results = train(
