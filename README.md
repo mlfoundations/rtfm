@@ -25,6 +25,11 @@ We recommend use of the provided `conda` environment. You can set it up with:
 conda env create -f environment.yml
 pip install --no-deps git+https://github.com/mlfoundations/tableshift.git
 ```
+# Quickstart - Inference
+
+If you want to interactively explore the model or want to try it on your own, unlabelled data, the best way to do this is by using the `inference.ipynb` notebook in `notebooks`. This notebook shows how to create simple DataFrames and use them for inference.
+
+The notebook above is our recommended default for users interested in trying out TabuLa-8B. For more fine-grained control over your inference (e.g. changing the system prompt used at inference time), you can use `inference_utils.infer_on_example()`.
 
 # Quickstart - Training
 
