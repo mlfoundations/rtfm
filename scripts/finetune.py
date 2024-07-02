@@ -411,7 +411,6 @@ def main(
         wandb_run=wandb_run,
         epoch_length=train_config.max_steps,
         step=global_step,
-        tokenizer=tokenizer,
     )
 
 
