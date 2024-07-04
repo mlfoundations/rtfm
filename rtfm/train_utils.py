@@ -13,6 +13,11 @@ import numpy as np
 import torch
 import torch.distributed as dist
 import torch.distributed.fsdp as FSDP
+from torch.distributed.fsdp.fully_sharded_data_parallel import (
+    FullStateDictConfig,
+    StateDictType,
+    FullOptimStateDictConfig,
+)
 import transformers
 from accelerate.utils import is_xpu_available
 from botocore.exceptions import ClientError
@@ -39,7 +44,34 @@ SCHEDULER_STATE_PT = "scheduler_state.pt"
 OPTIMIZER_STATE_PT = "optimizer_state.pt"
 
 
-def load_model_from_checkpoint(model, ckpt_dir) -> Tuple[torch.nn.Module, int]:
+def load_optimizer_from_checkpoint(
+    model, optimizer, ckpt_dir, train_config: TrainConfig
+):
+    optimizer_state = torch.load(
+        os.path.join(ckpt_dir, OPTIMIZER_STATE_PT), map_location="cpu"
+    )
+    if train_config.enable_fsdp:
+        # optimizer_state = FSDP.optim_state_dict_to_load(
+        #     model=model, optim=optimizer, optim_state_dict=optimizer_state
+        # )
+        # Configure FSDP to use full state dict for optimizer
+        full_optim_state_dict_config = FullOptimStateDictConfig(
+            offload_to_cpu=True, rank0_only=True
+        )
+
+        # Load optimizer state dict
+        with FSDP.state_dict_type(
+            model, StateDictType.FULL_STATE_DICT, full_optim_state_dict_config
+        ):
+            optimizer.load_state_dict(optimizer_state)
+    else:
+        optimizer.load_state_dict(optimizer_state)
+    return optimizer
+
+
+def load_model_from_checkpoint(
+    model, ckpt_dir, train_config: TrainConfig
+) -> Tuple[torch.nn.Module, int]:
     print(f"loading model weights from {ckpt_dir}")
 
     # Initialize an empty state dictionary
@@ -56,8 +88,19 @@ def load_model_from_checkpoint(model, ckpt_dir) -> Tuple[torch.nn.Module, int]:
             with safe_open(shard_file, framework="pt", device="cpu") as f:
                 for key in tqdm(f.keys(), desc=f"load from {shard_file}"):
                     state_dict[key] = f.get_tensor(key)
+    if train_config.enable_fsdp:
+        # Configure FSDP to use full state dict for model
+        full_state_dict_config = FullStateDictConfig(
+            offload_to_cpu=True, rank0_only=True
+        )
+        # Load model state dict
+        with FSDP.state_dict_type(
+            model, StateDictType.FULL_STATE_DICT, full_state_dict_config
+        ):
+            model.load_state_dict(state_dict)
 
-    model.load_state_dict(state_dict)
+    else:
+        model.load_state_dict(state_dict)
 
     step = re.search("step-(\d+)", ckpt_dir).group(1)
     print(f"loaded step is {step}")

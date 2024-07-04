@@ -52,7 +52,11 @@ from rtfm.train_utils import (
     OPTIMIZER_STATE_PT,
     SCHEDULER_STATE_PT,
 )
-from rtfm.train_utils import train, load_model_from_checkpoint
+from rtfm.train_utils import (
+    train,
+    load_model_from_checkpoint,
+    load_optimizer_from_checkpoint,
+)
 from rtfm.utils import get_task_names_list, get_latest_checkpoint
 
 
@@ -372,19 +376,15 @@ def main(
         ckpt_dir = get_latest_checkpoint(train_config.resume)
         print("#" * 50)
         print(f"Resuming scheduler, optimizer, and model from {ckpt_dir}")
-        optimizer_state = torch.load(
-            os.path.join(ckpt_dir, OPTIMIZER_STATE_PT), map_location="cpu"
-        )
-        if train_config.enable_fsdp:
-            optimizer_state = FSDP.optim_state_dict_to_load(
-                model=model, optim=optimizer, optim_state_dict=optimizer_state
-            )
-        optimizer.load_state_dict(optimizer_state)
+
         scheduler_state = torch.load(
             os.path.join(ckpt_dir, SCHEDULER_STATE_PT), map_location="cpu"
         )
         scheduler.load_state_dict(scheduler_state)
-        model, global_step = load_model_from_checkpoint(model, ckpt_dir)
+        optimizer = load_optimizer_from_checkpoint(
+            model, optimizer, ckpt_dir, train_config
+        )
+        model, global_step = load_model_from_checkpoint(model, ckpt_dir, train_config)
         global_step += 1
     else:
         global_step = 0
