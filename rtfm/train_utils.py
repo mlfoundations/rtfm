@@ -67,7 +67,7 @@ def load_optimizer_from_checkpoint(
             FullStateDictConfig(rank0_only=True, offload_to_cpu=True),
             FullOptimStateDictConfig(rank0_only=True, offload_to_cpu=True),
         )
-        optimizer_state = model.module.broadcast_object(optimizer_state, src=0)
+        optimizer_state = model.broadcast_object(optimizer_state, src=0)
         optim_state_dict = FSDP.optim_state_dict_to_load(
             model=model, optim=optimizer, optim_state_dict=optimizer_state
         )
