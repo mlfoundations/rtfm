@@ -46,10 +46,17 @@ OPTIMIZER_STATE_PT = "optimizer_state.pt"
 def load_optimizer_from_checkpoint(
     model, optimizer, ckpt_dir, train_config: TrainConfig, rank
 ):
-    optimizer_pt = os.path.join(ckpt_dir, OPTIMIZER_STATE_PT)
+    is_main_process = (not train_config.enable_fsdp) or (
+        train_config.enable_fsdp and rank == 0
+    )
+    print(f"loading optimizer state on rank {rank}...")
+    if is_main_process:
+        optimizer_pt = os.path.join(ckpt_dir, OPTIMIZER_STATE_PT)
+        print(f"reading optimizer state dict from {optimizer_pt} on rank {rank}...")
+        optimizer_state = torch.load(optimizer_pt, map_location="cpu")
+    else:
+        optimizer_state = None
 
-    print(f"loading optimizer state from {optimizer_pt} on rank {rank}...")
-    optimizer_state = torch.load(optimizer_pt, map_location="cpu")
     if train_config.enable_fsdp:
         # Load optimizer state dict, following example usage in
         # torch.distributed.fsdp.fully_sharded_data_parallel.FSDP.optim_state_dict()
@@ -62,13 +69,13 @@ def load_optimizer_from_checkpoint(
         )
 
         optim_state_dict = FSDP.optim_state_dict_to_load(
-            model, optimizer, optimizer_state
+            model=model, optim=optimizer, optim_state_dict=optimizer_state
         )
         optimizer.load_state_dict(optim_state_dict)
 
     else:
         optimizer.load_state_dict(optimizer_state)
-    print(f"finished loading optimizer state from {optimizer_pt} on rank {rank}")
+    print(f"finished loading optimizer state on rank {rank}")
     return optimizer
 
 
