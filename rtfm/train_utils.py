@@ -62,7 +62,7 @@ def load_optimizer_from_checkpoint(
         )
 
         optim_state_dict = FSDP.optim_state_dict_to_load(
-            optimizer_state, model, optimizer
+            model, optimizer, optimizer_state
         )
         optimizer.load_state_dict(optim_state_dict)
 
