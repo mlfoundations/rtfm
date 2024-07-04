@@ -42,8 +42,6 @@ MODEL_STATE_PT = "model.pt"
 SCHEDULER_STATE_PT = "scheduler_state.pt"
 OPTIMIZER_STATE_PT = "optimizer_state.pt"
 
-FSDP.optim_state_dict()
-
 
 def load_optimizer_from_checkpoint(
     model, optimizer, ckpt_dir, train_config: TrainConfig, rank
