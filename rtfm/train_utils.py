@@ -51,21 +51,10 @@ def load_optimizer_from_checkpoint(
         os.path.join(ckpt_dir, OPTIMIZER_STATE_PT), map_location="cpu"
     )
     if train_config.enable_fsdp:
-        # optimizer_state = FSDP.optim_state_dict_to_load(
-        #     model=model, optim=optimizer, optim_state_dict=optimizer_state
-        # )
-        # Configure FSDP to use full state dict for optimizer
-        full_optim_state_dict_config = FullOptimStateDictConfig(
-            offload_to_cpu=True, rank0_only=True
+        optimizer_state = FSDP.optim_state_dict_to_load(
+            model=model, optim=optimizer, optim_state_dict=optimizer_state
         )
-
-        # Load optimizer state dict
-        with FSDP.state_dict_type(
-            model, StateDictType.FULL_STATE_DICT, full_optim_state_dict_config
-        ):
-            optimizer.load_state_dict(optimizer_state)
-    else:
-        optimizer.load_state_dict(optimizer_state)
+    optimizer.load_state_dict(optimizer_state)
     return optimizer
 
 
