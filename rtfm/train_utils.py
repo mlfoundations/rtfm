@@ -13,11 +13,6 @@ import numpy as np
 import torch
 import torch.distributed as dist
 import torch.distributed.fsdp as FSDP
-from torch.distributed.fsdp.fully_sharded_data_parallel import (
-    FullStateDictConfig,
-    StateDictType,
-    FullOptimStateDictConfig,
-)
 import transformers
 from accelerate.utils import is_xpu_available
 from botocore.exceptions import ClientError
@@ -31,6 +26,10 @@ from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 from torch.distributed.fsdp import (
     StateDictType,
 )
+from torch.distributed.fsdp.fully_sharded_data_parallel import (
+    FullStateDictConfig,
+    FullOptimStateDictConfig,
+)
 from torch.distributed.fsdp.sharded_grad_scaler import ShardedGradScaler
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -43,18 +42,34 @@ MODEL_STATE_PT = "model.pt"
 SCHEDULER_STATE_PT = "scheduler_state.pt"
 OPTIMIZER_STATE_PT = "optimizer_state.pt"
 
+FSDP.optim_state_dict()
+
 
 def load_optimizer_from_checkpoint(
     model, optimizer, ckpt_dir, train_config: TrainConfig, rank
 ):
     optimizer_pt = os.path.join(ckpt_dir, OPTIMIZER_STATE_PT)
+
     print(f"loading optimizer state from {optimizer_pt} on rank {rank}...")
     optimizer_state = torch.load(optimizer_pt, map_location="cpu")
     if train_config.enable_fsdp:
-        optimizer_state = FSDP.optim_state_dict_to_load(
-            model=model, optim=optimizer, optim_state_dict=optimizer_state
+        # Load optimizer state dict, following example usage in
+        # torch.distributed.fsdp.fully_sharded_data_parallel.FSDP.optim_state_dict()
+
+        FSDP.set_state_dict_type(
+            model,
+            StateDictType.FULL_STATE_DICT,
+            FullStateDictConfig(rank0_only=True, offload_to_cpu=True),
+            FullOptimStateDictConfig(rank0_only=True, offload_to_cpu=True),
         )
-    optimizer.load_state_dict(optimizer_state)
+
+        optim_state_dict = FSDP.optim_state_dict_to_load(
+            optimizer_state, model, optimizer
+        )
+        optimizer.load_state_dict(optim_state_dict)
+
+    else:
+        optimizer.load_state_dict(optimizer_state)
     print(f"finished loading optimizer state from {optimizer_pt} on rank {rank}")
     return optimizer
 
