@@ -45,23 +45,24 @@ OPTIMIZER_STATE_PT = "optimizer_state.pt"
 
 
 def load_optimizer_from_checkpoint(
-    model, optimizer, ckpt_dir, train_config: TrainConfig
+    model, optimizer, ckpt_dir, train_config: TrainConfig, rank
 ):
-    optimizer_state = torch.load(
-        os.path.join(ckpt_dir, OPTIMIZER_STATE_PT), map_location="cpu"
-    )
+    optimizer_pt = os.path.join(ckpt_dir, OPTIMIZER_STATE_PT)
+    print(f"loading optimizer state from {optimizer_pt} on rank {rank}...")
+    optimizer_state = torch.load(optimizer_pt, map_location="cpu")
     if train_config.enable_fsdp:
         optimizer_state = FSDP.optim_state_dict_to_load(
             model=model, optim=optimizer, optim_state_dict=optimizer_state
         )
     optimizer.load_state_dict(optimizer_state)
+    print(f"finished loading optimizer state from {optimizer_pt} on rank {rank}")
     return optimizer
 
 
 def load_model_from_checkpoint(
-    model, ckpt_dir, train_config: TrainConfig
+    model, ckpt_dir, train_config: TrainConfig, rank
 ) -> Tuple[torch.nn.Module, int]:
-    print(f"loading model weights from {ckpt_dir}")
+    print(f"loading model weights from {ckpt_dir} on rank {rank}...")
 
     # Initialize an empty state dictionary
     state_dict = {}
@@ -91,6 +92,7 @@ def load_model_from_checkpoint(
     else:
         model.load_state_dict(state_dict)
 
+    print(f"finished loading model weights from {ckpt_dir} on rank {rank}")
     step = re.search("step-(\d+)", ckpt_dir).group(1)
     print(f"loaded step is {step}")
 

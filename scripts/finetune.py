@@ -382,9 +382,11 @@ def main(
         )
         scheduler.load_state_dict(scheduler_state)
         optimizer = load_optimizer_from_checkpoint(
-            model, optimizer, ckpt_dir, train_config
+            model, optimizer, ckpt_dir, train_config, rank=rank
         )
-        model, global_step = load_model_from_checkpoint(model, ckpt_dir, train_config)
+        model, global_step = load_model_from_checkpoint(
+            model, ckpt_dir, train_config, rank
+        )
         global_step += 1
     else:
         global_step = 0
