@@ -250,7 +250,6 @@ def train(
         train_dataloader: The dataloader containing the training data
         optimizer: The optimizer used for training
         lr_scheduler: The learning rate scheduler
-        gradient_accumulation_steps: The number of steps to accumulate gradients before performing a backward/update operation
         local_rank: The rank of the current node in a distributed setting
         train_config: The training configuration
         eval_dataloader: The dataloader containing the eval data
@@ -391,11 +390,6 @@ def train(
             break
 
     pbar.close()
-
-    # TODO(jpgard): log results here; also log the validation results below.
-
-    if not train_config.enable_fsdp or rank == 0:
-        memtrace.print_stats()
 
     if train_config.save_model:
         checkpoint_end_time = save_train_state(
