@@ -17,7 +17,6 @@ class TrainConfig(train_config):
     eval_max_batches: int = 100
     resume: Optional[str] = None
     save_total_limit: int = 1
-    freeze_input_embeddings: bool = False
     serializer_cls: str = "BasicSerializerV2"
     # Whether to upload a CSV containing predictions to wandb.
     eval_upload_predictions: Literal["no", "on_eval", "on_finish"] = "on_eval"
