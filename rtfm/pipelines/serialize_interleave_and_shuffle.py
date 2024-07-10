@@ -310,6 +310,5 @@ if __name__ == "__main__":
         serializer_config,
         data_args,
         pipeline_config,
-        other_args,
     ) = parser.parse_args_into_dataclasses()
     main(serializer_config, data_args, pipeline_config)
