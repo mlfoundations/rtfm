@@ -12,6 +12,7 @@ import pandas as pd
 from rtfm.configs import SerializerConfig
 from rtfm.serialization.serializers import (
     BasicSerializer,
+    BasicSerializerV2,
     StructuredSerializer,
     PandasSeriesSerializer,
     HtmlSerializer,
@@ -231,6 +232,125 @@ class TestBasicSerializer(unittest.TestCase):
         """Test that BasicSerializer special tokens map is not empty."""
         serializer = BasicSerializer(config=SerializerConfig())
         self.assertTrue(len(serializer.special_tokens) > 0)
+
+
+class TestBasicSerializerV2(unittest.TestCase):
+    def test_with_prefix_suffix_choices(self):
+        """Test BasicSerializerV2 with prefix, suffix, and choices."""
+        serializer = BasicSerializerV2(config=SerializerConfig())
+        dummy_input = {
+            "float_feature": -768.25,
+            "int_feature": 5968,
+            "str_feature": "my_category",
+        }
+        task_context_text = "This is the task context."
+        prefix_text = "This is an observation."
+        suffix_text = "What is the label?"
+        choices_text = "||1||0||"
+        dummy_serialized_expected = "The float_feature is -768.25. The int_feature is 5968. The str_feature is my_category."
+
+        # Expected: 'This is the task context. This is an observation. 1 or 0.
+        #   The float_feature is -768.25. The int_feature is 5968.
+        #   The str_feature is my_category. What is the label?'
+        expected = " ".join(
+            x.strip()
+            for x in [
+                task_context_text,
+                prefix_text,
+                choices_text,
+                dummy_serialized_expected,
+                suffix_text,
+                choices_text,
+            ]
+        ).strip()
+
+        serialized = serializer(
+            dummy_input,
+            prefix_text=prefix_text,
+            suffix_text=suffix_text,
+            choices=["1", "0"],
+            task_context_text=task_context_text,
+        )
+
+        self.assertEqual(serialized, expected)
+
+    def test_with_choices_front(self):
+        """Test BasicSerializerV2 with prefix, suffix, and choices."""
+        serializer = BasicSerializerV2(
+            config=SerializerConfig(choices_position="front")
+        )
+        dummy_input = {
+            "float_feature": -768.25,
+            "int_feature": 5968,
+            "str_feature": "my_category",
+        }
+        task_context_text = "This is the task context."
+        prefix_text = "This is an observation."
+        suffix_text = "What is the label?"
+        choices_text = "||1||0||"
+        dummy_serialized_expected = "The float_feature is -768.25. The int_feature is 5968. The str_feature is my_category."
+
+        # Expected: 'This is the task context. This is an observation. 1 or 0.
+        #   The float_feature is -768.25. The int_feature is 5968.
+        #   The str_feature is my_category. What is the label?'
+        expected = " ".join(
+            x.strip()
+            for x in [
+                task_context_text,
+                prefix_text,
+                choices_text,
+                dummy_serialized_expected,
+                suffix_text,
+            ]
+        ).strip()
+
+        serialized = serializer(
+            dummy_input,
+            prefix_text=prefix_text,
+            suffix_text=suffix_text,
+            choices=["1", "0"],
+            task_context_text=task_context_text,
+        )
+
+        self.assertEqual(serialized, expected)
+
+    def test_with_choices_back(self):
+        """Test BasicSerializerV2 with prefix, suffix, and choices."""
+        serializer = BasicSerializerV2(config=SerializerConfig(choices_position="back"))
+        dummy_input = {
+            "float_feature": -768.25,
+            "int_feature": 5968,
+            "str_feature": "my_category",
+        }
+        task_context_text = "This is the task context."
+        prefix_text = "This is an observation."
+        suffix_text = "What is the label?"
+        choices_text = "||1||0||"
+        dummy_serialized_expected = "The float_feature is -768.25. The int_feature is 5968. The str_feature is my_category."
+
+        # Expected: 'This is the task context. This is an observation. 1 or 0.
+        #   The float_feature is -768.25. The int_feature is 5968.
+        #   The str_feature is my_category. What is the label?'
+        expected = " ".join(
+            x.strip()
+            for x in [
+                task_context_text,
+                prefix_text,
+                dummy_serialized_expected,
+                suffix_text,
+                choices_text,
+            ]
+        ).strip()
+
+        serialized = serializer(
+            dummy_input,
+            prefix_text=prefix_text,
+            suffix_text=suffix_text,
+            choices=["1", "0"],
+            task_context_text=task_context_text,
+        )
+
+        self.assertEqual(serialized, expected)
 
 
 class TestStructuredSerializer(unittest.TestCase):
