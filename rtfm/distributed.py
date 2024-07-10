@@ -19,13 +19,15 @@ from torch.distributed.fsdp import (
     FullyShardedDataParallel as FSDP,
     CPUOffload,
 )
-from transformers import LlamaForCausalLM, LlamaConfig
+from transformers import LlamaForCausalLM, LlamaConfig, AutoConfig
 from transformers.models.llama.modeling_llama import LlamaDecoderLayer
 
-from rtfm.configs import TrainConfig
+from rtfm.configs import TrainConfig, FsdpConfig
 
 
-def fsdp_wrap_model(model, train_config, fsdp_config, rank: int):
+def fsdp_wrap_model(
+    model, train_config: TrainConfig, fsdp_config: FsdpConfig, rank: int
+):
     if (
         fsdp_config.hsdp
         and fsdp_config.sharding_strategy == ShardingStrategy.HYBRID_SHARD
@@ -86,6 +88,9 @@ def safe_setup():
 def dist_setup(train_config) -> Tuple[int, int]:
     safe_setup()
 
+    rank = None
+    local_rank = None
+
     if torch.distributed.is_initialized():
         rank = int(os.environ["RANK"])
         local_rank = int(os.environ["LOCAL_RANK"])
@@ -98,8 +103,16 @@ def dist_setup(train_config) -> Tuple[int, int]:
     return rank, local_rank
 
 
-def load_model(train_config: TrainConfig, rank: Optional[int] = None):
+def load_model(
+    train_config: TrainConfig, fsdp_config: FsdpConfig, rank: Optional[int] = None
+):
     # Load the pre-trained model and setup its configuration
+    # Load the configuration
+    config = AutoConfig.from_pretrained(train_config.model_name)
+    if fsdp_config.pure_bf16:
+        # Set the torch_dtype to bfloat16 which matches TabuLa train/eval setup
+        config.torch_dtype = "bfloat16"
+
     use_cache = False if train_config.enable_fsdp else None
 
     if train_config.enable_fsdp and train_config.low_cpu_fsdp:
@@ -114,7 +127,7 @@ def load_model(train_config: TrainConfig, rank: Optional[int] = None):
                 train_config.model_name,
                 load_in_8bit=True if train_config.quantization else None,
                 device_map="auto" if train_config.quantization else None,
-                use_cache=use_cache,
+                config=config,
                 attn_implementation="sdpa" if train_config.use_fast_kernels else None,
             )
         else:
@@ -128,7 +141,7 @@ def load_model(train_config: TrainConfig, rank: Optional[int] = None):
             train_config.model_name,
             load_in_8bit=True if train_config.quantization else None,
             device_map="auto" if train_config.quantization else None,
-            use_cache=use_cache,
+            config=config,
             attn_implementation="sdpa" if train_config.use_fast_kernels else None,
         )
     return model

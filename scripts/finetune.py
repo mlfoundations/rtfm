@@ -107,7 +107,9 @@ def main(
         if not train_config.enable_fsdp or rank == 0:
             wandb_run = setup_wandb(config_dict=config_dict)
 
-    model = load_model(train_config, rank=rank if train_config.enable_fsdp else None)
+    model = load_model(
+        train_config, fsdp_config, rank=rank if train_config.enable_fsdp else None
+    )
 
     # Load the tokenizer and add special tokens
     tokenizer = AutoTokenizer.from_pretrained(train_config.model_name)
@@ -133,6 +135,8 @@ def main(
     if train_config.quantization:
         model = prepare_model_for_kbit_training(model)
 
+    # TODO(jpgard): below should be deprecated once we verify that bf16
+    #  loading works.
     # Convert the model to bfloat16 if fsdp and pure_bf16 is enabled
     if train_config.enable_fsdp and fsdp_config.pure_bf16:
         model.to(torch.bfloat16)
