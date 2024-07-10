@@ -24,6 +24,13 @@ _SPECIAL_TOKENS_MAP = {
 }
 
 
+def basic_serialize_choices(choices: List[str]) -> str:
+    if not choices:
+        return ""
+    else:
+        return " or ".join(choices)
+
+
 @dataclass
 class RowSerializer(ABC):
     """Abstract class to serialize rows of a tabular dataset."""
@@ -220,10 +227,7 @@ class BasicSerializer(RowSerializer):
         return output
 
     def serialize_choices(self, choices: List[str] = None) -> str:
-        if not choices:
-            return ""
-        else:
-            return " or ".join(choices)
+        return basic_serialize_choices(choices)
 
     def __call__(
         self,
@@ -247,14 +251,20 @@ class BasicSerializer(RowSerializer):
 
         choices_text = self.serialize_choices(choices)
 
-        elems_to_serialize = [
-            task_context_text,
-            prefix_text,
-            choices_text,
-            keys_and_values,
-            suffix_text,
-            choices_text,
-        ]
+        elems_to_serialize = [task_context_text, prefix_text]
+
+        if self.config.choices_position in ("front", "both"):
+            elems_to_serialize.append(choices_text)
+        elems_to_serialize.extend(
+            [
+                keys_and_values,
+                suffix_text,
+            ]
+        )
+
+        if self.config.choices_position in ("back", "both"):
+            elems_to_serialize.append(choices_text)
+
         serialized = " ".join(x.strip() for x in elems_to_serialize if x).strip()
 
         return serialized
@@ -471,7 +481,7 @@ class BaseDictBasedSerializer(RowSerializer):
         x: Union[pd.Series, Dict[Any, Any]],
         prefix_text="",
         suffix_text="",
-        choices_text="",
+        choices: Union[str, Sequence[str]] = "",
         task_context_text="",
         meta: Dict[str, Dict[str, Any]] = None,
     ) -> Dict[Any, Any]:
@@ -500,8 +510,8 @@ class BaseDictBasedSerializer(RowSerializer):
             df_dict["prefix"] = prefix_text
         if suffix_text:
             df_dict["suffix"] = suffix_text
-        if choices_text:
-            df_dict["choices"] = choices_text
+        if choices:
+            df_dict["choices"] = choices
         if task_context_text:
             df_dict["task_context"] = task_context_text
         return df_dict
@@ -530,7 +540,7 @@ class PandasSeriesSerializer(BaseDictBasedSerializer):
         raise
 
     def serialize_choices(self, choices: List[str] = None):
-        raise
+        return basic_serialize_choices(choices)
 
     def serialize_example(
         self,
@@ -572,7 +582,7 @@ class PandasSeriesSerializer(BaseDictBasedSerializer):
             x=x,
             prefix_text=prefix_text,
             suffix_text=suffix_text,
-            choices_text=self.serialize_choices(choices),
+            choices=self.serialize_choices(choices),
             task_context_text=task_context_text,
             meta=meta,
         )
@@ -626,7 +636,7 @@ class HtmlSerializer(BaseDictBasedSerializer):
         raise
 
     def serialize_choices(self, choices: List[str] = None):
-        raise
+        return basic_serialize_choices(choices)
 
     def serialize_example(
         self,
@@ -668,7 +678,7 @@ class HtmlSerializer(BaseDictBasedSerializer):
             x=x,
             prefix_text=prefix_text,
             suffix_text=suffix_text,
-            choices_text=self.serialize_choices(choices),
+            choices=self.serialize_choices(choices),
             task_context_text=task_context_text,
             meta=meta,
         )
@@ -769,7 +779,7 @@ class JsonSerializer(BaseDictBasedSerializer):
             x=x,
             prefix_text=prefix_text,
             suffix_text=suffix_text,
-            choices_text=self.serialize_choices(choices),
+            choices=choices,
             task_context_text=task_context_text,
             meta=meta,
         )
