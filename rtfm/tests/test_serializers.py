@@ -9,6 +9,7 @@ import unittest
 
 import pandas as pd
 
+from rtfm.configs import SerializerConfig
 from rtfm.serialization.serializers import (
     BasicSerializer,
     StructuredSerializer,
@@ -22,7 +23,7 @@ from rtfm.serialization.serializers import (
 class TestBasicSerializer(unittest.TestCase):
     def test_basic_serializer_no_prefix_suffix_choices(self):
         """Test BasicSerializer with only feature keys/values."""
-        serializer = BasicSerializer()
+        serializer = BasicSerializer(config=SerializerConfig())
         dummy_input = {
             "float_feature": -768.25,
             "int_feature": -25,
@@ -34,7 +35,7 @@ class TestBasicSerializer(unittest.TestCase):
 
     def test_basic_serializer_with_prefix_suffix_choices(self):
         """Test BasicSerializer with prefix, suffix, and choices."""
-        serializer = BasicSerializer()
+        serializer = BasicSerializer(config=SerializerConfig())
         dummy_input = {
             "float_feature": -768.25,
             "int_feature": 5968,
@@ -72,7 +73,7 @@ class TestBasicSerializer(unittest.TestCase):
 
     def test_basic_serializer_raises_on_bad_suffix(self):
         """Test that BasicSerializer raises ValueError when the suffix contains a period."""
-        serializer = BasicSerializer()
+        serializer = BasicSerializer(config=SerializerConfig())
         dummy_input = {
             "float_feature": -7168.25,
             "int_feature": 5968,
@@ -94,7 +95,7 @@ class TestBasicSerializer(unittest.TestCase):
 
     def test_basic_serializer_raises_on_bad_keys(self):
         """Test that BasicSerializer raises ValueError when one key is prefix of another."""
-        serializer = BasicSerializer(strict=True)
+        serializer = BasicSerializer(config=SerializerConfig(), strict=True)
         dummy_input = {
             "float_feature": -7168.25,
             "float_feature_2": -68.99,
@@ -115,7 +116,7 @@ class TestBasicSerializer(unittest.TestCase):
             )
 
     def test_basic_serialize_deserialize(self):
-        serializer = BasicSerializer()
+        serializer = BasicSerializer(config=SerializerConfig())
         dummy_input = {
             "float_feature": -7168.25,
             "int_feature": 5968,
@@ -139,7 +140,9 @@ class TestBasicSerializer(unittest.TestCase):
 
     def test_basic_serializer_with_shuffle(self, num_tries=100):
         """Test that shuffling occurs properly."""
-        serializer = BasicSerializer(shuffle_features=True)
+        serializer = BasicSerializer(
+            config=SerializerConfig(shuffle_instance_features=True)
+        )
         dummy_input = {
             "float_feature": -768.25,
             "int_feature": -25,
@@ -152,7 +155,7 @@ class TestBasicSerializer(unittest.TestCase):
 
     def test_basic_serializer_with_dropout(self, num_tries=100_000, p=0.5):
         """Test that dropout occurs properly."""
-        serializer = BasicSerializer(feature_dropout_prob=p)
+        serializer = BasicSerializer(config=SerializerConfig(feature_dropout=p))
         dummy_input = {
             "float_feature": -768.25,
             "int_feature": -25,
@@ -170,7 +173,7 @@ class TestBasicSerializer(unittest.TestCase):
 
     def test_basic_serializer_with_meta(self):
         """Test the BasicSerializer with metafeatures."""
-        serializer = BasicSerializer()
+        serializer = BasicSerializer(config=SerializerConfig())
         dummy_input = {
             "float_feature": -768.25,
             "int_feature": -25,
@@ -196,7 +199,7 @@ class TestBasicSerializer(unittest.TestCase):
 
     def test_basic_serializer_with_dropout_and_meta(self, num_tries=100_000, p=0.5):
         """Test that dropout occurs properly with metafeatures."""
-        serializer = BasicSerializer(feature_dropout_prob=p)
+        serializer = BasicSerializer(config=SerializerConfig(feature_dropout=p))
         dummy_input = {
             "float_feature": -768.25,
             "int_feature": -25,
@@ -226,13 +229,13 @@ class TestBasicSerializer(unittest.TestCase):
 
     def test_basic_serializer_special_tokens(self):
         """Test that BasicSerializer special tokens map is not empty."""
-        serializer = BasicSerializer()
+        serializer = BasicSerializer(config=SerializerConfig())
         self.assertTrue(len(serializer.special_tokens) > 0)
 
 
 class TestStructuredSerializer(unittest.TestCase):
     def test_structured_serializer(self):
-        serializer = StructuredSerializer()
+        serializer = StructuredSerializer(config=SerializerConfig())
         dummy_input = {
             "float_feature": -99.5,
             "int_feature": -1,
@@ -247,7 +250,7 @@ class TestStructuredSerializer(unittest.TestCase):
         self.assertEqual(serialized, expected)
 
     def test_structured_serializer_with_meta(self):
-        serializer = StructuredSerializer()
+        serializer = StructuredSerializer(config=SerializerConfig())
         dummy_input = {
             "float_feature": -99.5,
             "int_feature": -1,
@@ -268,7 +271,9 @@ class TestStructuredSerializer(unittest.TestCase):
         self.assertEqual(serialized, expected)
 
     def test_structured_serializer_with_shuffle(self, num_tries=100):
-        serializer = StructuredSerializer(shuffle_features=True)
+        serializer = StructuredSerializer(
+            config=SerializerConfig(shuffle_instance_features=True)
+        )
         dummy_input = {
             "float_feature": -99.5,
             "int_feature": -1,
@@ -280,7 +285,7 @@ class TestStructuredSerializer(unittest.TestCase):
 
     def test_structured_serializer_with_dropout(self, num_tries=100_000, p=0.5):
         """Test that dropout occurs properly."""
-        serializer = StructuredSerializer(feature_dropout_prob=p)
+        serializer = StructuredSerializer(config=SerializerConfig(feature_dropout=p))
         dummy_input = {
             "float_feature": -18.5,
             "int_feature": 105,
@@ -300,7 +305,7 @@ class TestStructuredSerializer(unittest.TestCase):
         self, num_tries=100_000, p=0.5
     ):
         """Test that dropout occurs properly."""
-        serializer = StructuredSerializer(feature_dropout_prob=p)
+        serializer = StructuredSerializer(config=SerializerConfig(feature_dropout=p))
         dummy_input = {
             "float_feature": -18.5,
             "int_feature": 105,
@@ -323,7 +328,7 @@ class TestStructuredSerializer(unittest.TestCase):
 
     def test_structured_serializer_special_tokens(self):
         """Test that StructuredSerializer special tokens map is not empty."""
-        serializer = StructuredSerializer()
+        serializer = StructuredSerializer(config=SerializerConfig())
         self.assertTrue(len(serializer.special_tokens) > 0)
 
     def test_structured_serializer_raises_on_bad_keys(self):
@@ -331,7 +336,7 @@ class TestStructuredSerializer(unittest.TestCase):
 
         (This is probably ok for StructuredSerializer but we enforce it to be safe, and because
         this shouldn't occur under normal circumstances.)"""
-        serializer = StructuredSerializer(strict=True)
+        serializer = StructuredSerializer(config=SerializerConfig(), strict=True)
         dummy_input = {
             "float_feature": -7168.25,
             "float_feature_2": -68.99,
@@ -352,7 +357,7 @@ class TestStructuredSerializer(unittest.TestCase):
             )
 
     def test_structured_serializer_deserialize(self):
-        serializer = StructuredSerializer()
+        serializer = StructuredSerializer(config=SerializerConfig())
         dummy_input = {
             "float_feature": 7168.25,
             "int_feature": -968,
@@ -378,7 +383,7 @@ class TestStructuredSerializer(unittest.TestCase):
     def test_structured_serializer_raises_on_deserialize_bad_example(self):
         """Test that StructuredSerializer.deserialize() raises ValueError
         on malformed example."""
-        serializer = StructuredSerializer()
+        serializer = StructuredSerializer(config=SerializerConfig())
         dummy_input = {
             "float_feature": 7168.25,
             "int_feature": -968,
@@ -424,7 +429,7 @@ class TestPandasSeriesSerializer(unittest.TestCase):
 
     def test_pandas_serializer_no_prefix_suffix_choices(self):
         """Test PandasSeriesSerializer with only feature keys/values."""
-        serializer = PandasSeriesSerializer()
+        serializer = PandasSeriesSerializer(config=SerializerConfig())
         dummy_input = {
             "float_feature": -768.25,
             "int_feature": -25,
@@ -452,7 +457,7 @@ class TestPandasSeriesSerializer(unittest.TestCase):
 
     def test_pandas_serializer_with_meta(self):
         """Test Pandas serializer with metadata."""
-        serializer = PandasSeriesSerializer()
+        serializer = PandasSeriesSerializer(config=SerializerConfig())
         dummy_input = {
             "float_feature": -99.5,
             "int_feature": -1,
@@ -499,7 +504,7 @@ class TestPandasSeriesSerializer(unittest.TestCase):
         pd.testing.assert_series_equal(serialized_evaluated, expected)
 
     def test_pandas_serializer_with_prefix_suffix_choices(self):
-        serializer = PandasSeriesSerializer()
+        serializer = PandasSeriesSerializer(config=SerializerConfig())
 
         dummy_input = {
             "float_feature": -7168.25,
@@ -510,13 +515,14 @@ class TestPandasSeriesSerializer(unittest.TestCase):
         task_context_text = "This is the task context."
         prefix_text = "This is an observation."
         suffix_text = "What is the label?"
-        choices_text = "1 or 0."
+        choices_text = "1 or 0"
+
         serialized = serializer(
             dummy_input,
             task_context_text=task_context_text,
             prefix_text=prefix_text,
             suffix_text=suffix_text,
-            choices_text=choices_text,
+            choices=["1", "0"],
         )
         expected = pd.Series(
             {
@@ -532,7 +538,7 @@ class TestPandasSeriesSerializer(unittest.TestCase):
 
     def test_pandas_serializer_deserialize(self):
         """Test deserialization of pandas serializer with metafeatures."""
-        serializer = PandasSeriesSerializer()
+        serializer = PandasSeriesSerializer(config=SerializerConfig())
         dummy_input = {
             "float_feature": -99.5,
             "int_feature": -1,
@@ -569,7 +575,7 @@ class TestHtmlNoWhitespaceSerializer(unittest.TestCase):
     other functionality is tested in TestHtmlSerializer."""
 
     def test_html_no_whitespace_serializer(self):
-        serializer = HtmlNoWhitespaceSerializer()
+        serializer = HtmlNoWhitespaceSerializer(config=SerializerConfig())
         dummy_input = {
             "float_feature": -768.25,
             "int_feature": -25,
@@ -582,7 +588,7 @@ class TestHtmlNoWhitespaceSerializer(unittest.TestCase):
         self.assertIsNone(re.search(">\s+<", serialized))
 
     def test_html_no_whitespace_serializer_with_prefix_suffix_choices(self):
-        serializer = HtmlNoWhitespaceSerializer()
+        serializer = HtmlNoWhitespaceSerializer(config=SerializerConfig())
 
         dummy_input = {
             "float_feature": -4e-3,
@@ -593,22 +599,21 @@ class TestHtmlNoWhitespaceSerializer(unittest.TestCase):
         task_context_text = "This is the task context, which provides context."
         prefix_text = "This is an observation drawn from a dataset."
         suffix_text = "What is the label??"
-        choices_text = "2 or 1 or 0."
         serialized = serializer(
             dummy_input,
             task_context_text=task_context_text,
             prefix_text=prefix_text,
             suffix_text=suffix_text,
-            choices_text=choices_text,
+            choices=["2", "1", "0"],
         )
-        expected = "<table border=\"1\" class=\"dataframe\"><thead><tr style=\"text-align: right;\"><th></th><th>0</th></tr></thead><tbody><tr><th>features</th><td>{'float_feature': {'value': -0.004}, 'bool_feature': {'value': True}, 'int_feature': {'value': 5968}, 'str_feature': {'value': 'my_category'}}</td></tr><tr><th>prefix</th><td>This is an observation drawn from a dataset.</td></tr><tr><th>suffix</th><td>What is the label??</td></tr><tr><th>choices</th><td>2 or 1 or 0.</td></tr><tr><th>task_context</th><td>This is the task context, which provides context.</td></tr></tbody></table>"
+        expected = "<table border=\"1\" class=\"dataframe\"><thead><tr style=\"text-align: right;\"><th></th><th>0</th></tr></thead><tbody><tr><th>features</th><td>{'float_feature': {'value': -0.004}, 'bool_feature': {'value': True}, 'int_feature': {'value': 5968}, 'str_feature': {'value': 'my_category'}}</td></tr><tr><th>prefix</th><td>This is an observation drawn from a dataset.</td></tr><tr><th>suffix</th><td>What is the label??</td></tr><tr><th>choices</th><td>2 or 1 or 0</td></tr><tr><th>task_context</th><td>This is the task context, which provides context.</td></tr></tbody></table>"
         self.assertEqual(serialized, expected)
         self.assertIsNone(re.search(">\s+<", serialized))
 
 
 class TestHtmlSerializer(unittest.TestCase):
     def test_html_serializer(self):
-        serializer = HtmlSerializer()
+        serializer = HtmlSerializer(config=SerializerConfig())
         dummy_input = {
             "float_feature": -768.25,
             "int_feature": -25,
@@ -632,11 +637,12 @@ class TestHtmlSerializer(unittest.TestCase):
         #     </tr>
         #   </tbody>
         # </table>
+
         self.assertEqual(serialized, expected)
 
     def test_html_serializer_with_meta(self):
         """Test HtmlSerializer with meta features."""
-        serializer = HtmlSerializer()
+        serializer = HtmlSerializer(config=SerializerConfig())
         dummy_input = {
             "float_feature": -1e-6,
             "int_feature": -1,
@@ -666,7 +672,7 @@ class TestHtmlSerializer(unittest.TestCase):
         self.assertEqual(serialized, expected)
 
     def test_html_serializer_with_prefix_suffix_choices(self):
-        serializer = HtmlSerializer()
+        serializer = HtmlSerializer(config=SerializerConfig())
 
         dummy_input = {
             "float_feature": -4e-3,
@@ -677,15 +683,14 @@ class TestHtmlSerializer(unittest.TestCase):
         task_context_text = "This is the task context, which provides context."
         prefix_text = "This is an observation drawn from a dataset."
         suffix_text = "What is the label??"
-        choices_text = "2 or 1 or 0."
         serialized = serializer(
             dummy_input,
             task_context_text=task_context_text,
             prefix_text=prefix_text,
             suffix_text=suffix_text,
-            choices_text=choices_text,
+            choices=["2", "1", "0"],
         )
-        expected = "<table border=\"1\" class=\"dataframe\">\n  <thead>\n    <tr style=\"text-align: right;\">\n      <th></th>\n      <th>0</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <th>features</th>\n      <td>{'float_feature': {'value': -0.004}, 'bool_feature': {'value': True}, 'int_feature': {'value': 5968}, 'str_feature': {'value': 'my_category'}}</td>\n    </tr>\n    <tr>\n      <th>prefix</th>\n      <td>This is an observation drawn from a dataset.</td>\n    </tr>\n    <tr>\n      <th>suffix</th>\n      <td>What is the label??</td>\n    </tr>\n    <tr>\n      <th>choices</th>\n      <td>2 or 1 or 0.</td>\n    </tr>\n    <tr>\n      <th>task_context</th>\n      <td>This is the task context, which provides context.</td>\n    </tr>\n  </tbody>\n</table>"
+        expected = "<table border=\"1\" class=\"dataframe\">\n  <thead>\n    <tr style=\"text-align: right;\">\n      <th></th>\n      <th>0</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <th>features</th>\n      <td>{'float_feature': {'value': -0.004}, 'bool_feature': {'value': True}, 'int_feature': {'value': 5968}, 'str_feature': {'value': 'my_category'}}</td>\n    </tr>\n    <tr>\n      <th>prefix</th>\n      <td>This is an observation drawn from a dataset.</td>\n    </tr>\n    <tr>\n      <th>suffix</th>\n      <td>What is the label??</td>\n    </tr>\n    <tr>\n      <th>choices</th>\n      <td>2 or 1 or 0</td>\n    </tr>\n    <tr>\n      <th>task_context</th>\n      <td>This is the task context, which provides context.</td>\n    </tr>\n  </tbody>\n</table>"
         # <table border="1" class="dataframe">
         #   <thead>
         #     <tr style="text-align: right;">
@@ -721,7 +726,7 @@ class TestHtmlSerializer(unittest.TestCase):
 
 class TestJsonSerializer(unittest.TestCase):
     def test_json_serializer(self):
-        serializer = JsonSerializer()
+        serializer = JsonSerializer(config=SerializerConfig())
         dummy_input = {
             "a_float_feature": -0.25,
             "int_feature": -25,
@@ -736,7 +741,7 @@ class TestJsonSerializer(unittest.TestCase):
 
     def test_json_serializer_with_meta(self):
         """Test HtmlSerializer with meta features."""
-        serializer = JsonSerializer()
+        serializer = JsonSerializer(config=SerializerConfig())
         dummy_input = {
             "float_feature": -1e-6,
             "int_feature": -1,
@@ -751,7 +756,7 @@ class TestJsonSerializer(unittest.TestCase):
         self.assertEqual(serialized, expected)
 
     def test_json_serializer_with_prefix_suffix_choices(self):
-        serializer = JsonSerializer()
+        serializer = JsonSerializer(config=SerializerConfig())
 
         dummy_input = {
             "float_feature": -4e-3,
@@ -768,21 +773,14 @@ class TestJsonSerializer(unittest.TestCase):
             task_context_text=task_context_text,
             prefix_text=prefix_text,
             suffix_text=suffix_text,
-            choices_text=choices_text,
+            choices=["2", "1", "0"],
         )
-        expected = '{"features": {"float_feature": {"value": -0.004}, "bool_feature": {"value": true}, "int_feature": {"value": 5968}, "str_feature": {"value": "my_category"}}, "prefix": "This is an observation drawn from a dataset.", "suffix": "What is the label??", "choices": "2 or 1 or 0.", "task_context": "This is the task context, which provides context."}'
-        # {'choices': '2 or 1 or 0.',
-        #  'features': {'bool_feature': {'value': True},
-        #               'float_feature': {'value': -0.004},
-        #               'int_feature': {'value': 5968},
-        #               'str_feature': {'value': 'my_category'}},
-        #  'prefix': 'This is an observation drawn from a dataset.',
-        #  'suffix': 'What is the label??',
-        #  'task_context': 'This is the task context, which provides context.'}
+        expected = '{"features": {"float_feature": {"value": -0.004}, "bool_feature": {"value": true}, "int_feature": {"value": 5968}, "str_feature": {"value": "my_category"}}, "prefix": "This is an observation drawn from a dataset.", "suffix": "What is the label??", "choices": ["2", "1", "0"], "task_context": "This is the task context, which provides context."}'
+
         self.assertEqual(serialized, expected)
 
     def test_json_serializer_with_prefix_suffix_choices_meta(self):
-        serializer = JsonSerializer()
+        serializer = JsonSerializer(config=SerializerConfig())
 
         dummy_input = {
             "float_feature": -4e-3,
@@ -798,24 +796,14 @@ class TestJsonSerializer(unittest.TestCase):
         task_context_text = "This is the task context, which provides context."
         prefix_text = "This is an observation drawn from a dataset."
         suffix_text = "What is the label??"
-        choices_text = "2 or 1 or 0."
         serialized = serializer(
             dummy_input,
             meta=meta,
             task_context_text=task_context_text,
             prefix_text=prefix_text,
             suffix_text=suffix_text,
-            choices_text=choices_text,
+            choices=["2", "1", "0"],
         )
-        expected = '{"features": {"float_feature": {"value": -0.004, "quantile": 0.0099, "scale": -0.2}, "bool_feature": {"value": true}, "int_feature": {"value": 5968, "quantile": 0.01, "scale": -0.99}, "str_feature": {"value": "my_category"}}, "prefix": "This is an observation drawn from a dataset.", "suffix": "What is the label??", "choices": "2 or 1 or 0.", "task_context": "This is the task context, which provides context."}'
-        # {'choices': '2 or 1 or 0.',
-        #  'features': {'bool_feature': {'value': True},
-        #               'float_feature': {'quantile': 0.0099,
-        #                                 'scale': -0.2,
-        #                                 'value': -0.004},
-        #               'int_feature': {'quantile': 0.01, 'scale': -0.99, 'value': 5968},
-        #               'str_feature': {'value': 'my_category'}},
-        #  'prefix': 'This is an observation drawn from a dataset.',
-        #  'suffix': 'What is the label??',
-        #  'task_context': 'This is the task context, which provides context.'}
+        expected = '{"features": {"float_feature": {"value": -0.004, "quantile": 0.0099, "scale": -0.2}, "bool_feature": {"value": true}, "int_feature": {"value": 5968, "quantile": 0.01, "scale": -0.99}, "str_feature": {"value": "my_category"}}, "prefix": "This is an observation drawn from a dataset.", "suffix": "What is the label??", "choices": ["2", "1", "0"], "task_context": "This is the task context, which provides context."}'
+
         self.assertEqual(serialized, expected)

@@ -83,6 +83,7 @@ class SerializerConfig:
     #     default=True,
     #     metadata={"help": "Whether to list the class choices in the prompt."},
     # )
+    choices_position: Literal["front", "back", "both"] = "both"
     max_precision: Optional[int] = None
 
 
