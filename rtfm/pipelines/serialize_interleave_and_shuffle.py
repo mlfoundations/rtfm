@@ -103,88 +103,89 @@ def chunked(iterable, n):
         yield iterable[i : i + n]
 
 
-def convert_to_wds(
-    parquet_files: Sequence[str],
-    index: int,
-    output_dir: str,
+import webdataset as wds
+import pandas as pd
+import os
+import json
+import random
+from sklearn.model_selection import train_test_split
+import logging
+from multiprocessing import Pool, Manager
+from functools import partial
+
+
+def process_single_file(
+    parquet_file: str,
+    shared_writers: dict,
+    lock: Manager().Lock(),
     prefix: str,
     eval_split=0.1,
 ):
-    do_train_eval = prefix == "train" and random.uniform(0.0, 1.0) > 0.9
-    # Output WebDataset file name based on the parquet file name
-    wds_filename = os.path.join(output_dir, f"{prefix}-{index:06d}.tar")
-    wds_eval_filename = os.path.join(output_dir, f"{prefix}eval-{index:06d}.tar")
-
-    sink = wds.TarWriter(wds_filename)
-    eval_sink = wds.TarWriter(wds_eval_filename) if do_train_eval else None
-
-    # Open a WebDataset writer
     def encode_row(ser: pd.Series):
         return json.dumps(ser.to_dict(), ensure_ascii=False).encode("utf-8")
 
-    for parquet_file in parquet_files:
-        # Read the parquet file
-        df = pd.read_parquet(parquet_file)
-        # Extract filename without extension for use in webdataset keys
-        base_filename = os.path.splitext(os.path.basename(parquet_file))[0]
+    df = pd.read_parquet(parquet_file)
+    base_filename = os.path.splitext(os.path.basename(parquet_file))[0]
 
-        # Randomly split the DataFrame into train and eval if this is train_eval split
-        if do_train_eval:
-            # Try/Except to handle small dataframes that cannot be split
-            try:
-                train_df, eval_df = train_test_split(
-                    df, test_size=eval_split, random_state=42
-                )
-            except ValueError:
-                logging.warning(f"Skipping train_eval split of df with size {len(df)}")
-                train_df = df
-                eval_df = None
-        else:
+    do_train_eval = prefix == "train" and random.uniform(0.0, 1.0) > 0.9
+
+    if do_train_eval:
+        try:
+            train_df, eval_df = train_test_split(
+                df, test_size=eval_split, random_state=42
+            )
+        except ValueError:
+            logging.warning(f"Skipping train_eval split of df with size {len(df)}")
             train_df = df
             eval_df = None
+    else:
+        train_df = df
+        eval_df = None
 
-        # Process the training data
+    with lock:
         for index, row in train_df.iterrows():
             key = f"{base_filename}__{index}"
-            sink.write({"__key__": key, "json": encode_row(row)})
+            shared_writers["main"].write({"__key__": key, "json": encode_row(row)})
 
-        # Process the evaluation data if applicable
-        if eval_sink and (eval_df is not None):
+        if eval_df is not None:
             for index, row in eval_df.iterrows():
                 key = f"{base_filename}__{index}"
-                eval_sink.write({"__key__": key, "json": encode_row(row)})
+                shared_writers["eval"].write({"__key__": key, "json": encode_row(row)})
 
-        os.remove(parquet_file)
-
-    # Close the WebDataset writers
-    sink.close()
-    if eval_sink:
-        eval_sink.close()
+    os.remove(parquet_file)
 
 
-def parquet_to_wds(parquet_files, prefix: str, chunk_size, output_dir="output"):
-    # Make sure the output directory exists
+def parquet_to_wds(parquet_files, prefix: str, output_dir: str, target_size_mb=500):
     os.makedirs(output_dir, exist_ok=True)
 
-    # Chunk the files
-    file_chunks = list(chunked(parquet_files, chunk_size))
+    main_pattern = os.path.join(output_dir, f"{prefix}-%06d.tar")
+    eval_pattern = os.path.join(output_dir, f"{prefix}eval-%06d.tar")
 
-    # Create a pool of workers
-    with Pool(os.cpu_count()) as pool:
-        # Map parquet files to the converter function with the specified output directory
-        list(
-            tqdm(
-                pool.starmap(
-                    convert_to_wds,
-                    [
-                        (file_chunk, i, output_dir, prefix)
-                        for i, file_chunk in enumerate(file_chunks)
-                    ],
-                ),
-                total=len(parquet_files) // chunk_size,
-                desc=f"{prefix} parquet to wds",
-            )
-        )
+    manager = Manager()
+    shared_writers = manager.dict()
+    shared_writers["main"] = wds.ShardWriter(
+        main_pattern, maxcount=None, maxsize=target_size_mb * 1024 * 1024
+    )
+    shared_writers["eval"] = wds.ShardWriter(
+        eval_pattern, maxcount=None, maxsize=target_size_mb * 1024 * 1024
+    )
+
+    lock = manager.Lock()
+
+    # Partial function to fix all arguments except the parquet_file
+    process_func = partial(
+        process_single_file, shared_writers=shared_writers, lock=lock, prefix=prefix
+    )
+
+    # Use all available CPUs
+    with Pool() as pool:
+        pool.map(process_func, parquet_files)
+
+    # Close the writers
+    shared_writers["main"].close()
+    shared_writers["eval"].close()
+
+    return shared_writers["main"].shard_names, shared_writers["eval"].shard_names
 
 
 @dataclass
@@ -197,6 +198,7 @@ class PipelineConfig:
     output_shard_factor: int = 1000
     output_file_prefix: Optional[str] = None
     chunk_size: int = 64
+    target_size_mb: int = 500
 
 
 def main(
@@ -285,7 +287,7 @@ def main(
         parquet_to_wds(
             split_files,
             prefix=prefix,
-            chunk_size=pipeline_config.chunk_size,
+            target_size_mb=pipeline_config.target_size_mb,
             output_dir=os.path.join(pipeline_config.output_dir, split),
         )
 
