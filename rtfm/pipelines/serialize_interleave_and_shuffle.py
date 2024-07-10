@@ -54,9 +54,9 @@ def write_file_list(files, output: str) -> None:
 def process_file(
     row,
     data_args: DataArguments,
+    serializer_config: SerializerConfig,
     model_max_len_tokens=4096,
     appx_chars_per_token=3.5,
-    serializer_cls="BasicSerializerV2",
 ):
     filename = row["item"]
     logging.warning(f"loading {filename}")
@@ -77,7 +77,7 @@ def process_file(
 
     records = df.to_dict(orient="records")
 
-    serializer = get_serializer(serializer_cls)
+    serializer = get_serializer(serializer_config)
     _map_fn = partial(
         example_map_fn,
         data_args=data_args,
@@ -250,7 +250,7 @@ def main(
 
     fn_kwargs = {
         "data_args": data_args,
-        "serializer_cls": serializer_config.serializer_cls,
+        "serializer_config": serializer_config,
     }
     test_ds = test_ds.flat_map(process_file, fn_kwargs=fn_kwargs).repartition(
         parallelism * pipeline_config.output_shard_factor
