@@ -8,7 +8,7 @@ and used for training directly, instead of needing to be serialized first.
 Usage:
 python scripts/serialize_interleave_and_shuffle.py \
     --input-dir "/path/or/wildcard/to/parquet/chunk-001[2-4]/" \
-    --input-dir /path/to/output/ \
+    --output-dir /path/to/output/ \
     --chunk_size 256 \
     --max_tables 100_000
 """
