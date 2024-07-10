@@ -190,7 +190,7 @@ def parquet_to_wds(parquet_files, prefix: str, chunk_size, output_dir="output"):
 @dataclass
 class PipelineConfig:
     input_dir: str
-    output_dir = "./sampledata"
+    output_dir: str
     max_tables: Optional[int] = None
     train_frac: float = 0.975
     split_random_seed = 42
