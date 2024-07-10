@@ -8,6 +8,7 @@ from typing import Dict, Optional
 import pandas as pd
 import transformers
 from llama_recipes.policies import apply_fsdp_checkpointing
+import torch.distributed as dist
 from transformers import AutoTokenizer
 
 from rtfm.arguments import (
@@ -136,6 +137,8 @@ def main(
         model = fsdp_wrap_model(model, train_config, fsdp_config, rank)
         if fsdp_config.fsdp_activation_checkpointing:
             apply_fsdp_checkpointing(model)
+
+        dist.barrier()
 
     ############ dataset setup
 
