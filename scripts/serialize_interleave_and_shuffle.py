@@ -18,18 +18,20 @@ import logging
 import os
 import random
 import time
+from dataclasses import dataclass
 from functools import partial
 from multiprocessing import Pool
 from typing import Sequence, Optional
 
-import fire
 import pandas as pd
 import ray
 import webdataset as wds
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
+from transformers import HfArgumentParser
 
 from rtfm.arguments import DataArguments
+from rtfm.configs import SerializerConfig
 from rtfm.data import (
     build_formatted_df_from_file,
     example_map_fn,
@@ -185,28 +187,40 @@ def parquet_to_wds(parquet_files, prefix: str, chunk_size, output_dir="output"):
         )
 
 
+@dataclass
+class PipelineConfig:
+    input_dir: str
+    output_dir = "./sampledata"
+    max_tables: Optional[int] = None
+    train_frac: float = 0.975
+    split_random_seed = 42
+    output_shard_factor: int = 1000
+    output_file_prefix: Optional[str] = None
+    chunk_size: int = 64
+
+
 def main(
-    input_dir: str,
-    serializer_cls: str = "BasicSerializerV2",
-        output_dir="./sampledata",
-    max_tables: Optional[int] = None,
-    train_frac: float = 0.975,
-    split_random_seed=42,
-    output_shard_factor: int = 1000,
-    output_file_prefix: Optional[str] = None,
-    chunk_size: int = 64,
-    labels_drop_numeric: bool = False,
-    labels_p_numeric: float = 0.1,
+    serializer_config: SerializerConfig,
+    data_args: DataArguments,
+    pipeline_config: PipelineConfig,
 ):
-    if max_tables:
-        logging.warning(f"max_tables is {max_tables}")
+    data_args.use_config = False
+    data_args.feature_name_handling = "none"
+    data_args.feature_value_handling = "none"
+    data_args.targets_handling = "none"
+
+    if pipeline_config.max_tables:
+        logging.warning(f"pipeline_config.max_tables is {pipeline_config.max_tables}")
     print(f"ray version is {ray.__version__}")
     start = time.time()
-    files = glob.glob(os.path.join(input_dir, "*.parquet"))
+    files = glob.glob(os.path.join(pipeline_config.input_dir, "*.parquet"))
     print(f"got {len(files)} parquet files")
 
-    if max_tables is not None and len(files) > max_tables:
-        files = files[:max_tables]
+    if (
+        pipeline_config.max_tables is not None
+        and len(files) > pipeline_config.max_tables
+    ):
+        files = files[: pipeline_config.max_tables]
     print(f"files is {files}")
     ray.init(address="auto")
 
@@ -223,7 +237,9 @@ def main(
 
     # Fully shuffle the input files.
     train_files, split_files = train_test_split(
-        files, test_size=1 - train_frac, random_state=split_random_seed
+        files,
+        test_size=1 - pipeline_config.train_frac,
+        random_state=pipeline_config.split_random_seed,
     )
     train_ds = ray.data.from_items(train_files)
     test_ds = ray.data.from_items(split_files)
@@ -231,65 +247,69 @@ def main(
     # Repartition to balance the size of shards (smaller shards help avoid OOM),
     # and also to control the size of the output files (this keeps output files small, which helps
     # us shuffle them later).
-    data_args = DataArguments(
-        targets_handling="none",
-        feature_name_handling="none",
-        feature_value_handling="none",
-        use_config=False,
-        use_metafeatures=False,
-        use_task_context=False,
-        labels_drop_numeric=labels_drop_numeric,
-        labels_p_numeric=labels_p_numeric,
-    )
+
     fn_kwargs = {
         "data_args": data_args,
-        "serializer_cls": serializer_cls,
+        "serializer_cls": serializer_config.serializer_cls,
     }
     test_ds = test_ds.flat_map(process_file, fn_kwargs=fn_kwargs).repartition(
-        parallelism * output_shard_factor
+        parallelism * pipeline_config.output_shard_factor
     )
     train_ds = train_ds.flat_map(process_file, fn_kwargs=fn_kwargs).repartition(
-        parallelism * output_shard_factor
+        parallelism * pipeline_config.output_shard_factor
     )
 
     splits = ("train", "test")
 
     for ds, split in zip((train_ds, test_ds), splits):
-        ds.write_parquet(f"local://{os.path.abspath(output_dir)}/{split}")
+        ds.write_parquet(
+            f"local://{os.path.abspath(pipeline_config.output_dir)}/{split}"
+        )
 
     ray.shutdown()
 
     print(
-        f"finished ray pipeline in {time.time() - start} secs. Files are written to {output_dir}"
+        f"finished ray pipeline in {time.time() - start} secs. Files are written to {pipeline_config.output_dir}"
     )
 
     for split in ("test", "train"):
-        split_files = glob.glob(os.path.join(output_dir, split, "*.parquet"))
+        split_files = glob.glob(
+            os.path.join(pipeline_config.output_dir, split, "*.parquet")
+        )
         print(f"converting {len(split_files)} files to webdataset for split {split}.")
         prefix = (
-            split if not output_file_prefix else "-".join((output_file_prefix, split))
+            split
+            if not pipeline_config.output_file_prefix
+            else "-".join((pipeline_config.output_file_prefix, split))
         )
         parquet_to_wds(
             split_files,
             prefix=prefix,
-            chunk_size=chunk_size,
-            output_dir=os.path.join(output_dir, split),
+            chunk_size=pipeline_config.chunk_size,
+            output_dir=os.path.join(pipeline_config.output_dir, split),
         )
 
     write_file_list(
-        glob.glob(os.path.join(output_dir, "train", "train-*.tar")),
-        os.path.join(output_dir, "train", f"train-files.txt"),
+        glob.glob(os.path.join(pipeline_config.output_dir, "train", "train-*.tar")),
+        os.path.join(pipeline_config.output_dir, "train", f"train-files.txt"),
     )
     write_file_list(
-        glob.glob(os.path.join(output_dir, "train", "traineval-*.tar")),
-        os.path.join(output_dir, split, f"traineval-files.txt"),
+        glob.glob(os.path.join(pipeline_config.output_dir, "train", "traineval-*.tar")),
+        os.path.join(pipeline_config.output_dir, split, f"traineval-files.txt"),
     )
     write_file_list(
-        glob.glob(os.path.join(output_dir, "test", "test-*.tar")),
-        os.path.join(output_dir, "test", f"test-files.txt"),
+        glob.glob(os.path.join(pipeline_config.output_dir, "test", "test-*.tar")),
+        os.path.join(pipeline_config.output_dir, "test", f"test-files.txt"),
     )
     return
 
 
 if __name__ == "__main__":
-    fire.Fire(main)
+    parser = HfArgumentParser((SerializerConfig, DataArguments, PipelineConfig))
+    (
+        serializer_config,
+        data_args,
+        pipeline_config,
+        other_args,
+    ) = parser.parse_args_into_dataclasses()
+    main(serializer_config, data_args, pipeline_config)
