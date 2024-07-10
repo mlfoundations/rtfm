@@ -127,11 +127,11 @@ This section gives an example of how to train a model from a set of parquet file
 ## 1. Prepare training data.
 
 The model expects sets of serialized records stored in .tar files, which are in webdataset format.
-To serialize data, we provide the script `serialize_interleave_and_shuffle.py`
+To serialize data, we provide the script `serialize_interleave_and_shuffle.py` (located at rtfm/pipelines/serialize_interleave_and_shuffle.py)
 to serialize a set of parquet files:
 
 ```shell
-python scripts/serialize_interleave_and_shuffle.py \
+python -m rtfm.pipelines.serialize_interleave_and_shuffle \
     --input-dir /glob/containing/parquet/files/ \
     --output-dir ./serialized/v6.0.3/ \
     --max_tables 64 \
@@ -148,7 +148,7 @@ and the `test` split comprises only unseen tables.
 Some datasets may be too large to store on disk during training.
 `rtfm` supports using files stored on AWS S3.
 To use files hosted on S3, you need to move the training data there, and update the text files produced
-by `serialize_interleave_and_shuffle.py` to point to the correct location.
+by `rtfm/pipelines/serialize_interleave_and_shuffle.py` to point to the correct location.
 You can do this with `sed`, for example,
 the command below will replace the local training location with the s3 path for all lines in a text file:
 
