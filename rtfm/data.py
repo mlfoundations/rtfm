@@ -440,8 +440,8 @@ def example_map_fn(
     if data_args.use_task_context:
         assert task_context, f"expected task context but got none!"
 
-    prefix = cfg.get_prefix() if data_args.use_prefix else ""
-    suffix = cfg.get_suffix() if data_args.use_suffix else ""
+    prefix = cfg.get_prefix() if serializer.config.use_prefix else ""
+    suffix = cfg.get_suffix() if serializer.config.use_suffix else ""
 
     choices = cfg.get_label_values()
 

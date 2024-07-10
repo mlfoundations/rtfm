@@ -32,29 +32,7 @@ class LoggingArguments:
 
 @dataclass
 class ModelArguments:
-    model_name_or_path: str = field(default=None)
-    serializer_cls: str = field(
-        default="BasicSerializerV2", metadata={"help": "serializer class to use."}
-    )
-
-    add_serializer_tokens: bool = field(
-        default=True,
-        metadata={
-            "help": "whether to add special tokens for the serializer to the vocabulary. "
-            "If False, the tokens (i.e. <VALUE_START> for StructuredSerializer) are added"
-            " to the example text, but are not explicitly added as special tokens "
-            "to the tokenizer vocabulary."
-        },
-    )
-    serializer_tokens_embed_fn: str = field(
-        default="smart",
-        metadata={
-            "choices": ("smart", "vipi", "hf"),
-            "help": "Embedding initialization method to use for serializer special tokens."
-            "Only used if add_serializer_tokens=True (ignored otherwise)",
-        },
-    )
-    use_fast_tokenizer: bool = field(default=True)
+    pass
 
 
 @dataclass
@@ -145,18 +123,6 @@ class DataArguments:
             "datasets that are NOT preserialized."
         },
     )
-    shuffle_instance_features: bool = field(
-        default=False,
-        metadata={
-            "help": "If true, randomly shuffle the order of features for each instance."
-        },
-    )
-    feature_dropout: float = field(
-        default=0.0,
-        metadata={
-            "help": "Proportion of features in each example to randomly drop out during training."
-        },
-    )
     feature_value_handling: str = field(
         default="map",
         metadata={
@@ -200,13 +166,6 @@ class DataArguments:
             "If True, there will be only a single <bos> token per sequence, at index zero."
         },
     )
-    use_prefix: bool = field(
-        default=True,
-        metadata={
-            "help": "whether to use a prefix for examples. The prefix lists "
-            "valid choices, and describes the prediction task."
-        },
-    )
     use_task_context: bool = field(
         default=False,
         metadata={
@@ -246,18 +205,7 @@ class DataArguments:
             "column have more than this number of characters, it cannot be used as a target."
         },
     )
-    use_suffix: bool = field(
-        default=True,
-        metadata={
-            "help": "Whether to use a suffix for examples. "
-            "The suffix phrases the prediction tasks as a question, "
-            "and lists valid choices."
-        },
-    )
-    use_choices: bool = field(
-        default=True,
-        metadata={"help": "Whether to list the class choices in the prompt."},
-    )
+
     use_metafeatures: bool = field(
         default=False,
         metadata={"help": "Whether to add the quantile transform to data."},

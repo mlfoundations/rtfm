@@ -13,7 +13,7 @@ from transformers import AutoTokenizer
 from rtfm.arguments import (
     DataArguments,
 )
-from rtfm.configs import TrainConfig, TokenizerConfig
+from rtfm.configs import TrainConfig, TokenizerConfig, SerializerConfig
 from rtfm.evaluation.evaluation_utils import (
     prepare_eval_kwargs,
     prepare_eval_datasets,
@@ -46,6 +46,7 @@ def main(
     data_arguments: DataArguments,
     train_config: TrainConfig,
     tokenizer_config: TokenizerConfig,
+    serializer_config: SerializerConfig,
     outfile: str,
     split: str,
     eval_task_names: Optional[str] = None,
@@ -84,12 +85,7 @@ def main(
     )
 
     tokenizer = AutoTokenizer.from_pretrained(train_config.model_name)
-    serializer = get_serializer(
-        train_config.serializer_cls,
-        shuffle_features=data_arguments.shuffle_instance_features,
-        feature_dropout_prob=0.0,
-        meta_features=None,
-    )
+    serializer = get_serializer(serializer_config)
 
     tokenizer, model = prepare_tokenizer(
         model,
@@ -196,7 +192,7 @@ def main(
 
 if __name__ == "__main__":
     parser = transformers.HfArgumentParser(
-        (DataArguments, TrainConfig, TokenizerConfig)
+        (DataArguments, TrainConfig, TokenizerConfig, SerializerConfig)
     )
 
     parser.add_argument(
@@ -227,6 +223,7 @@ if __name__ == "__main__":
         data_args,
         train_config,
         tokenizer_config,
+        serializer_config,
         other_args,
     ) = parser.parse_args_into_dataclasses()
 
@@ -234,5 +231,6 @@ if __name__ == "__main__":
         data_arguments=data_args,
         train_config=train_config,
         tokenizer_config=tokenizer_config,
+        serializer_config=serializer_config,
         **vars(other_args),
     )

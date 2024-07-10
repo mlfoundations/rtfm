@@ -41,7 +41,13 @@ from transformers import (
 from transformers.models.llama.modeling_llama import LlamaDecoderLayer
 
 from rtfm.arguments import DataArguments
-from rtfm.configs import TrainConfig, FsdpConfig, LoraConfig, TokenizerConfig
+from rtfm.configs import (
+    TrainConfig,
+    FsdpConfig,
+    LoraConfig,
+    TokenizerConfig,
+    SerializerConfig,
+)
 from rtfm.data import (
     prepare_tokenized_dataset,
     DataCollatorForSupervisedDataset,
@@ -86,6 +92,7 @@ def main(
     lora_config: LoraConfig,
     data_arguments: DataArguments,
     tokenizer_config: TokenizerConfig,
+    serializer_config: SerializerConfig,
     train_task_file: str,
     eval_task_file: Optional[str] = None,
 ):
@@ -184,7 +191,7 @@ def main(
 
     from rtfm.tokenization.text import prepare_tokenizer
 
-    train_serializer = get_serializer(train_config.serializer_cls)
+    train_serializer = get_serializer(serializer_config)
     tokenizer, model = prepare_tokenizer(
         model,
         tokenizer=tokenizer,
@@ -416,7 +423,14 @@ def main(
 
 if __name__ == "__main__":
     parser = HfArgumentParser(
-        (FsdpConfig, LoraConfig, TrainConfig, DataArguments, TokenizerConfig)
+        (
+            FsdpConfig,
+            LoraConfig,
+            TrainConfig,
+            DataArguments,
+            TokenizerConfig,
+            SerializerConfig,
+        )
     )
 
     parser.add_argument("--train-task-file", type=str, default=None)
@@ -429,6 +443,7 @@ if __name__ == "__main__":
         train_config,
         data_arguments,
         tokenizer_config,
+        serializer_config,
         other_args,
     ) = parser.parse_args_into_dataclasses()
 
@@ -438,5 +453,6 @@ if __name__ == "__main__":
         lora_config=lora_config,
         data_arguments=data_arguments,
         tokenizer_config=tokenizer_config,
+        serializer_config=serializer_config,
         **vars(other_args),
     )
