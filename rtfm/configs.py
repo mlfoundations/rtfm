@@ -78,7 +78,6 @@ class FsdpConfig:
     fsdp_activation_checkpointing: bool = True
     fsdp_cpu_offload: bool = False
     pure_bf16: bool = False
-    optimizer: str = "AdamW"
 
     def __post_init__(self):
         if isinstance(self.sharding_strategy, str):

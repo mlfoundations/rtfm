@@ -11,16 +11,12 @@ import torch
 import torch.optim as optim
 from accelerate.utils import is_xpu_available
 from llama_recipes.configs import wandb_config as WandbConfig
-from llama_recipes.policies import AnyPrecisionAdamW, apply_fsdp_checkpointing
+from llama_recipes.policies import apply_fsdp_checkpointing
 from llama_recipes.utils.config_utils import (
     update_config,
     generate_peft_config,
 )
-from llama_recipes.utils.train_utils import (
-    setup_environ_flags,
-    clear_gpu_cache,
-    print_model_size,
-)
+from llama_recipes.utils.train_utils import print_model_size
 from peft import get_peft_model, prepare_model_for_kbit_training
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 from transformers import (
@@ -35,7 +31,7 @@ from rtfm.data import (
     prepare_tokenized_dataset,
     DataCollatorForSupervisedDataset,
 )
-from rtfm.distributed import fsdp_wrap_model, safe_setup, load_model
+from rtfm.distributed import fsdp_wrap_model, load_model, dist_setup
 from rtfm.serialization.serializers import get_serializer
 from rtfm.tokenization.text import sanity_check_tokenizer, prepare_tokenizer
 from rtfm.train_utils import (
@@ -97,26 +93,7 @@ def main(
     random.seed(train_config.seed)
 
     if train_config.enable_fsdp:
-        safe_setup()
-        # torchrun specific
-        local_rank = int(os.environ["LOCAL_RANK"])
-        rank = int(os.environ["RANK"])
-        world_size = int(os.environ["WORLD_SIZE"])
-
-    if (train_config.enable_fsdp and rank == 0) or (not train_config.enable_fsdp):
-        print(f"train_config is {dataclasses.asdict(train_config)}")
-        print(f"fsdp_config is {dataclasses.asdict(fsdp_config)}")
-        print(f"data_arguments is {data_arguments.__dict__}")
-
-    if torch.distributed.is_initialized():
-        rank = int(os.environ["RANK"])
-        local_rank = int(os.environ["LOCAL_RANK"])
-        if is_xpu_available():
-            torch.xpu.set_device(local_rank)
-        elif torch.cuda.is_available():
-            torch.cuda.set_device(local_rank)
-        clear_gpu_cache(local_rank)
-        setup_environ_flags(rank)
+        rank, local_rank = dist_setup(train_config)
 
     wandb_run = None
 
@@ -242,21 +219,11 @@ def main(
     #################### Training setup ######################
 
     # Initialize the optimizer and learning rate scheduler
-    if fsdp_config.pure_bf16 and fsdp_config.optimizer == "anyprecision":
-        optimizer = AnyPrecisionAdamW(
-            model.parameters(),
-            lr=train_config.lr,
-            momentum_dtype=torch.bfloat16,
-            variance_dtype=torch.bfloat16,
-            use_kahan_summation=False,
-            weight_decay=train_config.weight_decay,
-        )
-    else:
-        optimizer = optim.AdamW(
-            model.parameters(),
-            lr=train_config.lr,
-            weight_decay=train_config.weight_decay,
-        )
+    optimizer = optim.AdamW(
+        model.parameters(),
+        lr=train_config.lr,
+        weight_decay=train_config.weight_decay,
+    )
 
     scheduler = get_cosine_schedule_with_warmup(
         optimizer,

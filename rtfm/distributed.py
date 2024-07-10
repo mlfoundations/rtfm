@@ -1,4 +1,5 @@
-from typing import Optional
+import os
+from typing import Optional, Tuple
 
 import torch
 from accelerate.utils import is_xpu_available
@@ -8,6 +9,10 @@ from llama_recipes.utils import (
     get_policies,
     fsdp_auto_wrap_policy,
     setup,
+)
+from llama_recipes.utils.train_utils import (
+    setup_environ_flags,
+    clear_gpu_cache,
 )
 from torch.distributed.fsdp import (
     ShardingStrategy,
@@ -76,6 +81,21 @@ def safe_setup():
     except ValueError as ve:
         if "trying to initialize the default process group twice" in str(ve):
             return
+
+
+def dist_setup(train_config) -> Tuple[int, int]:
+    safe_setup()
+
+    if torch.distributed.is_initialized():
+        rank = int(os.environ["RANK"])
+        local_rank = int(os.environ["LOCAL_RANK"])
+        if is_xpu_available():
+            torch.xpu.set_device(local_rank)
+        elif torch.cuda.is_available():
+            torch.cuda.set_device(local_rank)
+        clear_gpu_cache(local_rank)
+        setup_environ_flags(rank)
+    return rank, local_rank
 
 
 def load_model(train_config: TrainConfig, rank: Optional[int] = None):

@@ -7,13 +7,14 @@ from typing import Dict, Optional
 
 import pandas as pd
 import transformers
-from llama_recipes.inference.model_utils import load_model
+from llama_recipes.policies import apply_fsdp_checkpointing
 from transformers import AutoTokenizer
 
 from rtfm.arguments import (
     DataArguments,
 )
-from rtfm.configs import TrainConfig, TokenizerConfig
+from rtfm.configs import TrainConfig, TokenizerConfig, FsdpConfig
+from rtfm.distributed import load_model, dist_setup, fsdp_wrap_model
 from rtfm.evaluation.evaluation_utils import (
     prepare_eval_kwargs,
     prepare_eval_datasets,
@@ -43,21 +44,21 @@ transformers.logging.set_verbosity_info()
 
 
 def main(
-    data_arguments: DataArguments,
-    train_config: TrainConfig,
-    tokenizer_config: TokenizerConfig,
-    outfile: str,
-    split: str,
-    eval_task_names: Optional[str] = None,
-    eval_task_file: Optional[str] = None,
-    use_fast_kernels: bool = False,
-    overwrite: bool = False,
+        data_arguments: DataArguments,
+        train_config: TrainConfig,
+        tokenizer_config: TokenizerConfig,
+        fsdp_config: FsdpConfig,
+        outfile: str,
+        split: str,
+        eval_task_names: Optional[str] = None,
+        eval_task_file: Optional[str] = None,
+        overwrite: bool = False,
 ):
     if os.path.exists(outfile) and not overwrite:
         logging.warning(f"file {outfile} already exists; skipping evaluation.")
         return
     assert not (
-        eval_task_names and eval_task_file
+            eval_task_names and eval_task_file
     ), "specify either eval_task_names or eval_task_file, not both."
 
     assert (
@@ -77,11 +78,10 @@ def main(
         f"Either do not use a tag, or use a single eval task name."
     )
 
-    model = load_model(
-        train_config.model_name,
-        quantization=False,
-        use_fast_kernels=use_fast_kernels,
-    )
+    if train_config.enable_fsdp:
+        rank, local_rank = dist_setup(train_config)
+
+    model = load_model(train_config, rank=rank if train_config.enable_fsdp else None)
 
     tokenizer = AutoTokenizer.from_pretrained(train_config.model_name)
     serializer = get_serializer(
@@ -130,6 +130,13 @@ def main(
         )
         print("#" * 50)
 
+    if train_config.enable_fsdp:
+        model = fsdp_wrap_model(model, train_config, fsdp_config, rank)
+        if fsdp_config.fsdp_activation_checkpointing:
+            apply_fsdp_checkpointing(model)
+
+    ############ dataset setup
+
     splits_to_keep = ("train", "validation", "test") if not eval_task_file else None
     print(f"splits_to_keep is {splits_to_keep}")
     eval_dataset_kwargs = prepare_eval_kwargs(
@@ -156,7 +163,7 @@ def main(
 
         for evaluator in evaluators:
             if data_arguments.use_config and isinstance(
-                evaluator, ClosedVocabularyEvaluator
+                    evaluator, ClosedVocabularyEvaluator
             ):
                 eval_task_config = get_tlm_config(
                     eval_task_name.replace("_holdout", "")
@@ -196,7 +203,7 @@ def main(
 
 if __name__ == "__main__":
     parser = transformers.HfArgumentParser(
-        (DataArguments, TrainConfig, TokenizerConfig)
+        (DataArguments, TrainConfig, TokenizerConfig, FsdpConfig)
     )
 
     parser.add_argument(
@@ -227,6 +234,7 @@ if __name__ == "__main__":
         data_args,
         train_config,
         tokenizer_config,
+        fsdp_config
         other_args,
     ) = parser.parse_args_into_dataclasses()
 
@@ -234,5 +242,6 @@ if __name__ == "__main__":
         data_arguments=data_args,
         train_config=train_config,
         tokenizer_config=tokenizer_config,
+        fsdp_config=fsdp_config,
         **vars(other_args),
     )
