@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 
 from rtfm import special_tokens as tok
+from rtfm.configs import SerializerConfig
 from rtfm.serialization.serialization_utils import (
     shuffle_example_features,
     apply_feature_dropout,
@@ -27,20 +28,19 @@ _SPECIAL_TOKENS_MAP = {
 class RowSerializer(ABC):
     """Abstract class to serialize rows of a tabular dataset."""
 
-    shuffle_features: bool = False
-    feature_dropout_prob: float = 0.0
+    config: SerializerConfig
     strict: bool = False
 
-    # Maximum number of decimal places, used for all numeric features.
-    max_precision: Optional[int] = None
-
+    # TODO(jpgard): meta_features belongs in the SerializerConfig
+    #  but moving it there requires more refactoring in data.py
+    #  to extricate it from the DataArguments class.
     meta_features: Optional[Sequence[str]] = None
 
     def _round_to_max_precision(self, val: Any):
         """Optionally round a feature to a maximum number of decimal places."""
         assert np.issubdtype(type(val), np.number)
-        if self.max_precision is not None:
-            return round(val, self.max_precision)
+        if self.config.max_precision is not None:
+            return round(val, self.config.max_precision)
         else:
             return val
 
@@ -76,10 +76,10 @@ class RowSerializer(ABC):
 
         self._check_example(x)
 
-        if self.shuffle_features:
+        if self.config.shuffle_instance_features:
             x = shuffle_example_features(x)
-        if self.feature_dropout_prob > 0.0:
-            x = apply_feature_dropout(x, self.feature_dropout_prob)
+        if self.config.feature_dropout > 0.0:
+            x = apply_feature_dropout(x, self.config.feature_dropout)
         return x
 
     @abstractmethod
@@ -186,7 +186,7 @@ class BasicSerializer(RowSerializer):
 
         for k in feature_names:
             serialized_key = self.serialize_key(k)
-            if serialized_key not in x and (not self.feature_dropout_prob > 0.0):
+            if serialized_key not in x and (not self.config.feature_dropout > 0.0):
                 raise ValueError(f"Expected key {serialized_key} not in example {x}.")
             elif serialized_key in x:
                 serialized_key_indices[serialized_key] = x.index(serialized_key)
@@ -776,6 +776,6 @@ class JsonSerializer(BaseDictBasedSerializer):
         return json.dumps(example_dict)
 
 
-def get_serializer(serializer_cls: str, **kwargs) -> RowSerializer:
-    serializer = eval(serializer_cls)(**kwargs)
+def get_serializer(config: SerializerConfig, **kwargs) -> RowSerializer:
+    serializer = eval(config.serializer_cls)(**kwargs, config=config)
     return serializer

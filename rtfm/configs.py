@@ -18,7 +18,6 @@ class TrainConfig(train_config):
     resume: Optional[str] = None
     save_total_limit: int = 1
     freeze_input_embeddings: bool = False
-    serializer_cls: str = "BasicSerializerV2"
     # Whether to upload a CSV containing predictions to wandb.
     eval_upload_predictions: Literal["no", "on_eval", "on_finish"] = "on_eval"
     shuffle_buffer_size: int = 10_000
@@ -37,9 +36,54 @@ class TrainConfig(train_config):
 class TokenizerConfig:
     """Configuration class for tokenization and serialization."""
 
+    # "whether to add special tokens for the serializer to the vocabulary. "
+    # "If False, the tokens (i.e. <VALUE_START> for StructuredSerializer) are added"
+    # " to the example text, but are not explicitly added as special tokens "
+    # "to the tokenizer vocabulary."
     add_serializer_tokens: bool = True
+    # "Embedding initialization method to use for serializer special tokens."
+    # "Only used if add_serializer_tokens=True (ignored otherwise)"
     serializer_tokens_embed_fn: Literal["smart", "vipi", "hf"] = "smart"
     use_fast_tokenizer: bool = True
+
+
+@dataclass
+class SerializerConfig:
+    """Configuration class for serializer."""
+
+    serializer_cls: str = "BasicSerializerV2"
+    shuffle_instance_features: bool = False
+    #     default=False,
+    #     metadata={
+    #         "help": "If true, randomly shuffle the order of features for each instance."
+    #     },
+    # )
+    feature_dropout: float = 0.0
+    #     default=0.0,
+    #     metadata={
+    #         "help": "Proportion of features in each example to randomly drop out during training."
+    #     },
+    # )
+    use_prefix: bool = True
+    #     default=True,
+    #     metadata={
+    #         "help": "whether to use a prefix for examples. The prefix lists "
+    #                 "valid choices, and describes the prediction task."
+    #     },
+    # )
+    use_suffix: bool = True
+    #     default=True,
+    #     metadata={
+    #         "help": "Whether to use a suffix for examples. "
+    #                 "The suffix phrases the prediction tasks as a question, "
+    #                 "and lists valid choices."
+    #     },
+    # )
+    use_choices: bool = True
+    #     default=True,
+    #     metadata={"help": "Whether to list the class choices in the prompt."},
+    # )
+    max_precision: Optional[int] = None
 
 
 @dataclass
