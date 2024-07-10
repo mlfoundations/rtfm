@@ -44,7 +44,7 @@ def fsdp_wrap_model(
     if not train_config.use_peft and train_config.freeze_layers:
         freeze_transformer_layers(model, train_config.num_freeze_layers)
 
-    mixed_precision_policy, wrapping_policy = get_policies(fsdp_config, rank)
+    mixed_precision_policy, wrapping_policy = get_policies(train_config, rank)
     my_auto_wrapping_policy = fsdp_auto_wrap_policy(model, LlamaDecoderLayer)
 
     device_id = 0
