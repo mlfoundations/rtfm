@@ -9,7 +9,7 @@ conda activate rtfm
 # test of the eval loop. If you want to test the (fine-tune --> evaluate) loop, then
 # use the file train_and_eval_tiny_local_test.sh .
 USER_CONFIG_DIR="./sampledata" \
-python scripts/evaluate_checkpoint.py \
+python -m rtfm.evaluation.evaluate_checkpoint.py \
   --eval-task-names "dummy_n10000_d4_numclasses4" \
   --model_name "yujiepan/llama-2-tiny-random" \
   --eval_max_samples 128 \
