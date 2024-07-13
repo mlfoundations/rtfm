@@ -6,16 +6,15 @@ from one of those datasets. Those observations can be tokenized
 and used for training directly, instead of needing to be serialized first.
 
 Usage:
-python scripts/serialize_interleave_and_shuffle.py \
-    --input-dir "/path/or/wildcard/to/parquet/chunk-001[2-4]/" \
-    --output-dir /path/to/output/ \
+python -m rtfm.pipelines.serialize_interleave_and_shuffle \
+    --input_dir "/path/or/wildcard/to/parquet/directories/" \
+    --output_dir /path/to/output/ \
     --chunk_size 256 \
     --max_tables 100_000
 """
 import glob
 import json
 import logging
-import os
 import random
 import time
 from dataclasses import dataclass
@@ -25,9 +24,7 @@ from typing import Sequence, Optional
 
 import pandas as pd
 import ray
-import webdataset as wds
 from sklearn.model_selection import train_test_split
-from tqdm import tqdm
 from transformers import HfArgumentParser
 
 from rtfm.arguments import DataArguments
@@ -38,17 +35,6 @@ from rtfm.data import (
     NoTargetCandidatesError,
 )
 from rtfm.serialization.serializers import get_serializer
-
-
-def write_file_list(files, output: str) -> None:
-    print(f"writing list of {len(files)} files to {output}")
-    with open(output, "w") as f:
-        for i, file in enumerate(files):
-            if i + 1 < len(files):
-                f.write(os.path.abspath(file) + "\n")
-            else:
-                f.write(os.path.abspath(file))
-    return
 
 
 def process_file(
@@ -103,20 +89,98 @@ def chunked(iterable, n):
         yield iterable[i : i + n]
 
 
+import os
+import shutil
+import tempfile
+import webdataset as wds
+from tqdm import tqdm
+
+
+@dataclass
+class Resharder:
+    target_size_mb: int
+    extension: str = ".tar"
+
+    @property
+    def target_size(self):
+        return self.target_size_mb * 1024 * 1024  # Convert MB to bytes
+
+    def reshard(self, dirname, prefix: Optional[str] = None):
+        # Get all self.extension files in the directory
+        input_shards = [f for f in os.listdir(dirname) if f.endswith(self.extension)]
+        input_shards.sort()  # Ensure consistent ordering
+
+        # Create a temporary directory
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create a ShardWriter with the target size
+            filename = (
+                "-".join([x for x in (prefix, "%06d") if x is not None])
+                + self.extension
+            )
+            writer = wds.ShardWriter(
+                pattern=os.path.join(temp_dir, filename),
+                maxsize=self.target_size,
+            )
+
+            # Iterate through all input shards
+            for shard in tqdm(
+                input_shards, desc=f"Resharding {os.path.basename(dirname)}"
+            ):
+                # Open each shard and write its contents to the new shards
+                with wds.WebDataset(os.path.join(dirname, shard)) as dataset:
+                    for sample in dataset:
+                        writer.write(sample)
+
+            # Close the writer to ensure all data is written
+            writer.close()
+
+            # Delete original shards
+            for shard in input_shards:
+                os.remove(os.path.join(dirname, shard))
+
+            # Move new shards from temp directory to original directory
+            for shard in os.listdir(temp_dir):
+                shutil.move(os.path.join(temp_dir, shard), os.path.join(dirname, shard))
+
+        print(f"Resharding complete for {dirname}")
+
+    def reshard_all_subdirectories(self, root_dir, prefix):
+        # Iterate over all items in the root directory
+        for split in os.listdir(root_dir):
+            # Construct full path
+            item_path = os.path.join(root_dir, split)
+
+            # Check if it's a directory
+            if os.path.isdir(item_path):
+                print(f"Processing subdirectory: {split}")
+
+                # Check if the subdirectory contains any self.extension files
+                if any(file.endswith(self.extension) for file in os.listdir(item_path)):
+                    # Apply reshard function to this subdirectory
+                    self.reshard(item_path, "-".join([x for x in (prefix, split) if x]))
+                else:
+                    print(f"Skipping {split}: No {self.extension} files found")
+
+
 def convert_to_wds(
     parquet_files: Sequence[str],
     index: int,
     output_dir: str,
     prefix: str,
-    eval_split=0.1,
+    split: str,
+    eval_split=0.01,
 ):
-    do_train_eval = prefix == "train" and random.uniform(0.0, 1.0) > 0.9
+    do_eval_split = split == "train" and random.uniform(0.0, 1.0) < eval_split
+
+    base_file_name = "-".join([x for x in (prefix, split, f"{index:06d}.tar") if x])
     # Output WebDataset file name based on the parquet file name
-    wds_filename = os.path.join(output_dir, f"{prefix}-{index:06d}.tar")
-    wds_eval_filename = os.path.join(output_dir, f"{prefix}eval-{index:06d}.tar")
+    wds_filename = os.path.join(output_dir, split, base_file_name)
 
     sink = wds.TarWriter(wds_filename)
-    eval_sink = wds.TarWriter(wds_eval_filename) if do_train_eval else None
+    if do_eval_split:
+        wds_eval_filename = os.path.join(output_dir, split + "eval", base_file_name)
+        os.makedirs(os.path.dirname(wds_eval_filename), exist_ok=True)
+        eval_sink = wds.TarWriter(wds_eval_filename) if do_eval_split else None
 
     # Open a WebDataset writer
     def encode_row(ser: pd.Series):
@@ -129,7 +193,7 @@ def convert_to_wds(
         base_filename = os.path.splitext(os.path.basename(parquet_file))[0]
 
         # Randomly split the DataFrame into train and eval if this is train_eval split
-        if do_train_eval:
+        if do_eval_split:
             # Try/Except to handle small dataframes that cannot be split
             try:
                 train_df, eval_df = train_test_split(
@@ -149,7 +213,7 @@ def convert_to_wds(
             sink.write({"__key__": key, "json": encode_row(row)})
 
         # Process the evaluation data if applicable
-        if eval_sink and (eval_df is not None):
+        if do_eval_split and (eval_df is not None):
             for index, row in eval_df.iterrows():
                 key = f"{base_filename}__{index}"
                 eval_sink.write({"__key__": key, "json": encode_row(row)})
@@ -158,11 +222,18 @@ def convert_to_wds(
 
     # Close the WebDataset writers
     sink.close()
-    if eval_sink:
+    if do_eval_split and eval_sink:
         eval_sink.close()
 
 
-def parquet_to_wds(parquet_files, prefix: str, chunk_size, output_dir="output"):
+def parquet_to_wds(
+    parquet_files,
+    prefix: str,
+    split: str,
+    chunk_size: int,
+    target_shard_size_mb: int,
+    output_dir="output",
+):
     # Make sure the output directory exists
     os.makedirs(output_dir, exist_ok=True)
 
@@ -177,7 +248,7 @@ def parquet_to_wds(parquet_files, prefix: str, chunk_size, output_dir="output"):
                 pool.starmap(
                     convert_to_wds,
                     [
-                        (file_chunk, i, output_dir, prefix)
+                        (file_chunk, i, output_dir, prefix, split)
                         for i, file_chunk in enumerate(file_chunks)
                     ],
                 ),
@@ -185,6 +256,10 @@ def parquet_to_wds(parquet_files, prefix: str, chunk_size, output_dir="output"):
                 desc=f"{prefix} parquet to wds",
             )
         )
+
+    # reshard the outputs
+    resharder = Resharder(target_shard_size_mb)
+    resharder.reshard_all_subdirectories(output_dir, prefix)
 
 
 @dataclass
@@ -197,6 +272,7 @@ class PipelineConfig:
     output_shard_factor: int = 1000
     output_file_prefix: Optional[str] = None
     chunk_size: int = 64
+    target_shard_size_mb: int = 500
 
 
 def main(
@@ -277,30 +353,17 @@ def main(
             os.path.join(pipeline_config.output_dir, split, "*.parquet")
         )
         print(f"converting {len(split_files)} files to webdataset for split {split}.")
-        prefix = (
-            split
-            if not pipeline_config.output_file_prefix
-            else "-".join((pipeline_config.output_file_prefix, split))
-        )
         parquet_to_wds(
             split_files,
-            prefix=prefix,
+            prefix=pipeline_config.output_file_prefix
+            if pipeline_config.output_file_prefix is not None
+            else "",
+            split=split,
             chunk_size=pipeline_config.chunk_size,
-            output_dir=os.path.join(pipeline_config.output_dir, split),
+            output_dir=os.path.join(pipeline_config.output_dir),
+            target_shard_size_mb=pipeline_config.target_shard_size_mb,
         )
 
-    write_file_list(
-        glob.glob(os.path.join(pipeline_config.output_dir, "train", "train-*.tar")),
-        os.path.join(pipeline_config.output_dir, "train", f"train-files.txt"),
-    )
-    write_file_list(
-        glob.glob(os.path.join(pipeline_config.output_dir, "train", "traineval-*.tar")),
-        os.path.join(pipeline_config.output_dir, split, f"traineval-files.txt"),
-    )
-    write_file_list(
-        glob.glob(os.path.join(pipeline_config.output_dir, "test", "test-*.tar")),
-        os.path.join(pipeline_config.output_dir, "test", f"test-files.txt"),
-    )
     return
 
 
