@@ -461,14 +461,22 @@ class StructuredSerializer(RowSerializer):
             + self.serialize_example(x, meta)
             + self.train_example_end_token
         )
-        to_serialize = [
-            task_context_text,
-            prefix_text,
-            choices_text,
-            example_serialized,
-            suffix_text,
-        ]
-        serialized = "".join(x.strip() for x in to_serialize if x).strip()
+
+        elems_to_serialize = [task_context_text, prefix_text]
+
+        if self.config.choices_position in ("front", "both"):
+            elems_to_serialize.append(choices_text)
+        elems_to_serialize.extend(
+            [
+                example_serialized,
+                suffix_text,
+            ]
+        )
+
+        if self.config.choices_position in ("back", "both"):
+            elems_to_serialize.append(choices_text)
+
+        serialized = "".join(x.strip() for x in elems_to_serialize if x).strip()
         return serialized
 
 
