@@ -363,9 +363,46 @@ class TestStructuredSerializer(unittest.TestCase):
         }
         serialized = serializer(dummy_input)
         expected = (
-            "<EXAMPLE_START><KEY_START>float_feature<KEY_END><VALUE_START>-99.5<VALUE_END>"
-            "<KEY_START>int_feature<KEY_END><VALUE_START>-1<VALUE_END>"
-            "<KEY_START>str_feature<KEY_END><VALUE_START>my_category<VALUE_END><EXAMPLE_END>"
+            "<|EXAMPLE|><|KEY|>float_feature<|/KEY|><|VALUE|>-99.5<|/VALUE|>"
+            "<|KEY|>int_feature<|/KEY|><|VALUE|>-1<|/VALUE|>"
+            "<|KEY|>str_feature<|/KEY|><|VALUE|>my_category<|/VALUE|><|/EXAMPLE|>"
+        )
+        self.assertEqual(serialized, expected)
+
+    def test_structured_serializer_with_choices(self):
+        serializer = StructuredSerializer(config=SerializerConfig())
+        dummy_input = {
+            "float_feature": -99.5,
+            "int_feature": -1,
+            "str_feature": "my_category",
+        }
+        serialized = serializer(dummy_input, choices=["0", "1"])
+        expected = (
+            "<|CHOICES|>0||1<|/CHOICES|><|EXAMPLE|><|KEY|>float_feature<|/KEY|>"
+            "<|VALUE|>-99.5<|/VALUE|><|KEY|>int_feature<|/KEY|><|VALUE|>-1<|/VALUE|>"
+            "<|KEY|>str_feature<|/KEY|><|VALUE|>my_category<|/VALUE|><|/EXAMPLE|>"
+        )
+        self.assertEqual(serialized, expected)
+
+    def test_structured_serializer_with_prefix_suffix_choices(self):
+        serializer = StructuredSerializer(config=SerializerConfig())
+        dummy_input = {
+            "float_feature": -99.5,
+            "int_feature": -1,
+            "str_feature": "my_category",
+        }
+        serialized = serializer(
+            dummy_input,
+            choices=["0", "1"],
+            prefix_text="Predict the target:",
+            suffix_text="What is the value of target?",
+        )
+        expected = (
+            "<|PREFIX|>Predict the target:<|/PREFIX|><|CHOICES|>0||1<|/CHOICES|>"
+            "<|EXAMPLE|><|KEY|>float_feature<|/KEY|><|VALUE|>-99.5<|/VALUE|>"
+            "<|KEY|>int_feature<|/KEY|><|VALUE|>-1<|/VALUE|><|KEY|>str_feature<|/KEY|>"
+            "<|VALUE|>my_category<|/VALUE|><|/EXAMPLE|>"
+            "<|SUFFIX|>What is the value of target?<|/SUFFIX|>"
         )
         self.assertEqual(serialized, expected)
 
@@ -382,11 +419,11 @@ class TestStructuredSerializer(unittest.TestCase):
         }
         serialized = serializer(dummy_input, meta=meta)
         expected = (
-            "<EXAMPLE_START><KEY_START>float_feature<KEY_END><VALUE_START>-99.5<VALUE_END>"
-            "<META_START><QUANTILE_START>0.99<QUANTILE_END><SCALE_START>-0.2<SCALE_END><META_END>"
-            "<KEY_START>int_feature<KEY_END><VALUE_START>-1<VALUE_END><META_START>"
-            "<QUANTILE_START>0.91<QUANTILE_END><SCALE_START>-0.99<SCALE_END><META_END>"
-            "<KEY_START>str_feature<KEY_END><VALUE_START>my_category<VALUE_END><EXAMPLE_END>"
+            "<|EXAMPLE|><|KEY|>float_feature<|/KEY|><|VALUE|>-99.5<|/VALUE|>"
+            "<|META|><|QUANTILE|>0.99<|/QUANTILE|><|SCALE|>-0.2<|/SCALE|><|/META|>"
+            "<|KEY|>int_feature<|/KEY|><|VALUE|>-1<|/VALUE|><|META|>"
+            "<|QUANTILE|>0.91<|/QUANTILE|><|SCALE|>-0.99<|/SCALE|><|/META|>"
+            "<|KEY|>str_feature<|/KEY|><|VALUE|>my_category<|/VALUE|><|/EXAMPLE|>"
         )
         self.assertEqual(serialized, expected)
 

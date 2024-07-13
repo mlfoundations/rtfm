@@ -31,6 +31,24 @@ def basic_serialize_choices(choices: List[str]) -> str:
         return " or ".join(choices)
 
 
+def v2_serialize_choices(
+    choices: List[str],
+    sep_tok: str,
+    add_sep_before: bool = True,
+    add_sep_after: bool = True,
+) -> str:
+    if not choices:
+        return ""
+    else:
+        output = ""
+        if add_sep_before:
+            output += sep_tok
+        output += sep_tok.join(choices)
+        if add_sep_after:
+            output += sep_tok
+        return output
+
+
 @dataclass
 class RowSerializer(ABC):
     """Abstract class to serialize rows of a tabular dataset."""
@@ -280,11 +298,9 @@ class BasicSerializerV2(BasicSerializer):
         return _SPECIAL_TOKENS_MAP
 
     def serialize_choices(self, choices: List[str] = None) -> str:
-        if not choices:
-            return ""
-        else:
-            sep_tok = self.special_tokens["ans_choices_sep_token"]
-            return sep_tok + sep_tok.join(choices) + sep_tok
+        return v2_serialize_choices(
+            choices, self.special_tokens["ans_choices_sep_token"]
+        )
 
 
 @dataclass
@@ -346,12 +362,20 @@ class StructuredSerializer(RowSerializer):
             },
         }
 
-    def serialize_choices(self, choices: List[str] = None):
-        return (
-            self.special_tokens["choices_start_token"]
-            + self.special_tokens["ans_choices_sep_token"].join(choices)
-            + self.special_tokens["choices_end_token"]
-        )
+    def serialize_choices(self, choices: List[str] = None) -> str:
+        if not choices:
+            return ""
+        else:
+            return (
+                self.special_tokens["choices_start_token"]
+                + v2_serialize_choices(
+                    choices,
+                    self.special_tokens["ans_choices_sep_token"],
+                    add_sep_before=False,
+                    add_sep_after=False,
+                )
+                + self.special_tokens["choices_end_token"]
+            )
 
     @property
     def meta_tokens(self):
@@ -402,10 +426,10 @@ class StructuredSerializer(RowSerializer):
         value_start_idxs = find_all_idxs(self.value_start_token, x)
         value_end_idxs = find_all_idxs(self.value_end_token, x)
         if not all(
-            len(x) == len(key_start_idxs)
-            for x in (key_end_idxs, value_start_idxs, value_end_idxs)
+            len(idxs) == len(key_start_idxs)
+            for idxs in (key_end_idxs, value_start_idxs, value_end_idxs)
         ):
-            raise ValueError("Bad example: {x}")
+            raise ValueError(f"Bad example: {x}")
 
         for key_start, key_end, value_start, value_end in zip(
             key_start_idxs, key_end_idxs, value_start_idxs, value_end_idxs
@@ -431,10 +455,7 @@ class StructuredSerializer(RowSerializer):
             prefix_text = self.prefix_start_token + prefix_text + self.prefix_end_token
         if suffix_text:
             suffix_text = self.suffix_start_token + suffix_text + self.suffix_end_token
-        if choices:
-            choices_text = self.choices_start_token + choices + self.choices_end_token
-        else:
-            choices_text = ""
+        choices_text = self.serialize_choices(choices)
         example_serialized = (
             self.train_example_start_token
             + self.serialize_example(x, meta)
@@ -447,7 +468,7 @@ class StructuredSerializer(RowSerializer):
             example_serialized,
             suffix_text,
         ]
-        serialized = " ".join(x.strip() for x in to_serialize if x).strip()
+        serialized = "".join(x.strip() for x in to_serialize if x).strip()
         return serialized
 
 

@@ -24,7 +24,8 @@ def apply_feature_dropout(
 
 def find_all_idxs(substring, target_string):
     """Find the starting index of every instance of substring in target_string."""
-    return sorted([m.start() for m in re.finditer(substring, target_string)])
+    escaped_substring = re.escape(substring)
+    return sorted([m.start() for m in re.finditer(escaped_substring, target_string)])
 
 
 def extract_metafeatures(
