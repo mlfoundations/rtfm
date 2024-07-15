@@ -18,7 +18,6 @@ from rtfm.evaluation.evaluation_utils import (
     prepare_eval_kwargs,
     prepare_eval_datasets,
 )
-from rtfm.evaluation.evaluators import build_evaluators, ClosedVocabularyEvaluator
 from rtfm.serialization.serializers import get_serializer
 from rtfm.task_config import get_tlm_config
 from rtfm.tokenization.text import sanity_check_tokenizer, prepare_tokenizer
@@ -126,55 +125,48 @@ def main(
         )
         print("#" * 50)
 
-    splits_to_keep = ("train", "validation", "test") if not eval_task_file else None
-    print(f"splits_to_keep is {splits_to_keep}")
-    eval_dataset_kwargs = prepare_eval_kwargs(
-        tokenizer=tokenizer,
-        eval_serializer=serializer,
-        accelerator=None,
-        data_arguments=data_arguments,
-        train_config=train_config,
-        splits_to_keep=splits_to_keep,
-    )
-    eval_datasets_tokenized = prepare_eval_datasets(
-        eval_task_names=eval_task_names,
-        exclude_task_names=None,
-        data_arguments=data_arguments,
-        splits_to_keep=splits_to_keep,
-        **eval_dataset_kwargs,
-    )
+    from rtfm.evaluation.evaluators import OpenVocabularyEvaluator
+    from rtfm.inference_utils import RandomShotSelector
+    from rtfm.inference_utils import InferenceModel
 
-    evaluators = build_evaluators(train_config)
+    inference_model = InferenceModel(
+        model=model, tokenizer=tokenizer, serializer=serializer
+    )
+    shot_selector = RandomShotSelector()
+
+    evaluator = OpenVocabularyEvaluator()
 
     output_metrics: Dict[str, float] = {}
-    for eval_task_name, eval_task_dataset in eval_datasets_tokenized.items():
+    for eval_task_name in eval_task_names:
         prefix = f"{split}/{eval_task_name}"
 
-        for evaluator in evaluators:
-            if data_arguments.use_config and isinstance(
-                evaluator, ClosedVocabularyEvaluator
-            ):
-                eval_task_config = get_tlm_config(
-                    eval_task_name.replace("_holdout", "")
-                )
+        from rtfm.datasets.tableshift_utils import (
+            fetch_preprocessor_config_from_data_args,
+            get_dataset_info,
+        )
+        from rtfm.datasets import get_task_dataset
 
-                label_values = eval_task_config.get_label_values()
-            else:
-                label_values = None
+        preprocessor_config = fetch_preprocessor_config_from_data_args(
+            data_args, eval_task_name
+        )
+        tabular_dataset = get_task_dataset(
+            eval_task_name, preprocessor_config=preprocessor_config
+        )
+        # By default fetch the entire dataset.
+        df = tabular_dataset._df
 
-            metrics = evaluator.evaluate(
-                model=model,
-                tokenizer=tokenizer,
-                train_config=train_config,
-                dataset=eval_task_dataset,
-                wandb_logging_prefix=prefix,
-                step=None,
-                labels=label_values,
-            )
-            metrics = {f"{prefix}_{k}": v for k, v in metrics.items()}
-            output_metrics.update(metrics)
-            # TODO: log metrics to wandb.
-            print(metrics)
+        metrics = evaluator.evaluate(
+            inference_model=inference_model,
+            shot_selector=shot_selector,
+            num_shots=data_arguments.num_shots,
+            train_config=train_config,
+            df=df,
+            target_colname=tabular_dataset.target,
+        )
+        metrics = {f"{prefix}_{k}": v for k, v in metrics.items()}
+        output_metrics.update(metrics)
+        # TODO: log metrics to wandb.
+        print(metrics)
 
     df = (
         pd.DataFrame.from_dict({k: [v] for k, v in output_metrics.items()})

@@ -1,7 +1,8 @@
 import json
 import logging
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import List, Optional, Literal, Any
+from typing import List, Optional, Literal, Any, Union
 
 import numpy as np
 import pandas as pd
@@ -31,6 +32,10 @@ from rtfm.generation_utils import (
 from rtfm.serialization.serializers import RowSerializer
 from rtfm.task_config import TLMConfig
 from rtfm.torch_utils import batch_to_xpu
+
+
+class InvalidInferenceError(ValueError):
+    pass
 
 
 def prepare_dataframe(
@@ -224,7 +229,7 @@ def infer_on_example(
     if is_valid or handle_invalid_predictions is None:
         return prediction_text
     elif handle_invalid_predictions == "raise":
-        raise ValueError(
+        raise InvalidInferenceError(
             f"Model returned invalid predictions (no EOC token): {prediction_text}"
         )
     elif handle_invalid_predictions == "warn":
@@ -233,7 +238,7 @@ def infer_on_example(
         )
         return prediction_text
     else:
-        raise ValueError(
+        raise InvalidInferenceError(
             f"unknown value for handle_invalid_predictions: {handle_invalid_predictions}"
         )
 
@@ -270,3 +275,25 @@ class InferenceModel:
             target_choices=target_choices,
             **kwargs,
         )
+
+
+@dataclass
+class ShotSelector(ABC):
+    @abstractmethod
+    def select_shots(
+        self, df: pd.DataFrame, num_shots, target_index: int
+    ) -> Union[pd.DataFrame, None]:
+        raise
+
+
+class RandomShotSelector(ShotSelector):
+    def select_shots(
+        self, df: pd.DataFrame, num_shots: int, target_index: int
+    ) -> Union[pd.DataFrame, None]:
+        if not num_shots:
+            return None
+        if num_shots > len(df):
+            raise ValueError(
+                f"got num_shots={num_shots} but DataFrame has size {len(df)}"
+            )
+        return df.drop(index=target_index).sample(num_shots)
