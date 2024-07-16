@@ -19,6 +19,7 @@ from rtfm.evaluation.evaluation_utils import (
     prepare_eval_datasets,
 )
 from rtfm.evaluation.evaluators import build_evaluators, ClosedVocabularyEvaluator
+from rtfm.hf_utils import fetch_auth_token
 from rtfm.serialization.serializers import get_serializer
 from rtfm.task_config import get_tlm_config
 from rtfm.tokenization.text import sanity_check_tokenizer, prepare_tokenizer
@@ -84,7 +85,9 @@ def main(
         use_fast_kernels=use_fast_kernels,
     )
 
-    tokenizer = AutoTokenizer.from_pretrained(train_config.model_name)
+    tokenizer = AutoTokenizer.from_pretrained(
+        train_config.model_name, token=fetch_auth_token()
+    )
     serializer = get_serializer(serializer_config)
 
     tokenizer, model = prepare_tokenizer(
