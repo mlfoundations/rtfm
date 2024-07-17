@@ -817,21 +817,6 @@ class TestHtmlSerializer(unittest.TestCase):
         serialized = serializer(dummy_input, None)
         expected = "<table border=\"1\" class=\"dataframe\">\n  <thead>\n    <tr style=\"text-align: right;\">\n      <th></th>\n      <th>0</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <th>features</th>\n      <td>{'float_feature': {'value': -768.25}, 'int_feature': {'value': -25}, 'str_feature': {'value': 'my_category'}}</td>\n    </tr>\n  </tbody>\n</table>"
 
-        # <table border="1" class="dataframe">
-        #   <thead>
-        #     <tr style="text-align: right;">
-        #       <th></th>
-        #       <th>0</th>
-        #     </tr>
-        #   </thead>
-        #   <tbody>
-        #     <tr>
-        #       <th>features</th>
-        #       <td>{'float_feature': {'value': -768.25}, 'int_feature': {'value': -25}, 'str_feature': {'value': 'my_category'}}</td>
-        #     </tr>
-        #   </tbody>
-        # </table>
-
         self.assertEqual(serialized, expected)
 
     def test_html_serializer_with_meta(self):
@@ -849,20 +834,6 @@ class TestHtmlSerializer(unittest.TestCase):
         serialized = serializer(dummy_input, meta=meta)
         expected = "<table border=\"1\" class=\"dataframe\">\n  <thead>\n    <tr style=\"text-align: right;\">\n      <th></th>\n      <th>0</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <th>features</th>\n      <td>{'float_feature': {'value': -1e-06, 'quantile': 0.99, 'scale': -0.2}, 'int_feature': {'value': -1, 'quantile': 0.01, 'scale': -0.99}, 'str_feature': {'value': 'my_category'}}</td>\n    </tr>\n  </tbody>\n</table>"
 
-        # <table border="1" class="dataframe">
-        #   <thead>
-        #     <tr style="text-align: right;">
-        #       <th></th>
-        #       <th>0</th>
-        #     </tr>
-        #   </thead>
-        #   <tbody>
-        #     <tr>
-        #       <th>features</th>
-        #       <td>{'float_feature': {'value': -1e-06, 'quantile': 0.99, 'scale': -0.2}, 'int_feature': {'value': -1, 'quantile': 0.01, 'scale': -0.99}, 'str_feature': {'value': 'my_category'}}</td>
-        #     </tr>
-        #   </tbody>
-        # </table>
         self.assertEqual(serialized, expected)
 
     def test_html_serializer_with_prefix_suffix_choices(self):
@@ -931,7 +902,6 @@ class TestJsonSerializer(unittest.TestCase):
         task_context_text = "This is the task context, which provides context."
         prefix_text = "This is an observation drawn from a dataset."
         suffix_text = "What is the label??"
-        choices_text = "2 or 1 or 0."
         serialized = serializer(
             dummy_input,
             task_context_text=task_context_text,
