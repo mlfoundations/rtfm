@@ -1,5 +1,7 @@
 """
 Evaluate a language model for tabular data prediction.
+
+Models should be in Hugging Face format.
 """
 import logging
 import os
@@ -7,12 +9,9 @@ from typing import Dict, Optional
 
 import pandas as pd
 import transformers
-from llama_recipes.inference.model_utils import load_model
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, AutoModelForCausalLM
 
-from rtfm.arguments import (
-    DataArguments,
-)
+from rtfm.arguments import DataArguments
 from rtfm.configs import TrainConfig, TokenizerConfig, SerializerConfig
 from rtfm.evaluation.evaluation_utils import (
     prepare_eval_kwargs,
@@ -22,9 +21,7 @@ from rtfm.evaluation.evaluators import build_evaluators, ClosedVocabularyEvaluat
 from rtfm.hf_utils import fetch_auth_token
 from rtfm.serialization.serializers import get_serializer
 from rtfm.task_config import get_tlm_config
-from rtfm.tokenization.text import sanity_check_tokenizer, prepare_tokenizer
-from rtfm.train_utils import load_model_from_checkpoint
-from rtfm.utils import get_task_names_list, initialize_dir, get_latest_checkpoint
+from rtfm.utils import get_task_names_list, initialize_dir
 
 LOG_LEVEL = logging.DEBUG
 
@@ -79,10 +76,13 @@ def main(
         f"Either do not use a tag, or use a single eval task name."
     )
 
-    model = load_model(
+    model = AutoModelForCausalLM.from_pretrained(
         train_config.model_name,
-        quantization=False,
-        use_fast_kernels=use_fast_kernels,
+        return_dict=True,
+        load_in_8bit=train_config.quantization,
+        device_map="auto",
+        low_cpu_mem_usage=True,
+        attn_implementation="sdpa" if train_config.use_fast_kernels else None,
     )
 
     tokenizer = AutoTokenizer.from_pretrained(
@@ -90,44 +90,12 @@ def main(
     )
     serializer = get_serializer(serializer_config)
 
-    tokenizer, model = prepare_tokenizer(
-        model,
-        tokenizer=tokenizer,
-        pretrained_model_name_or_path=train_config.model_name,
-        model_max_length=train_config.context_length,
-        use_fast_tokenizer=tokenizer_config.use_fast_tokenizer,
-        serializer_tokens_embed_fn=tokenizer_config.serializer_tokens_embed_fn,
-        serializer_tokens=serializer.special_tokens
-        if tokenizer_config.add_serializer_tokens
-        else None,
+    assert not train_config.resume, (
+        f"using TrainConfig.resume is deprecated; instead export the model"
+        f"and tokenizer to hugging face format and provide the"
+        f"path to the directory containing the saved model/tokenizer"
+        f" as the --model_name flag."
     )
-    # sanity check for tokenizer
-    if tokenizer_config.add_serializer_tokens:
-        sanity_check_tokenizer(tokenizer, train_config.model_name)
-    else:
-        logging.warning(
-            f"tokenizer_config.add_serializer_tokens is {tokenizer_config.add_serializer_tokens}; "
-            f"this is expected if evaluating a base (not fine-tuned) model but unexpected otherwise."
-        )
-
-    if train_config.resume and not train_config.use_peft:
-        ckpt_dir = get_latest_checkpoint(train_config.resume)
-        model, _ = load_model_from_checkpoint(model, ckpt_dir)
-    elif train_config.resume and train_config.use_peft:
-        from peft import PeftModel
-
-        print("#" * 100)
-        ckpt_dir = get_latest_checkpoint(train_config.resume)
-        print(f"loading PEFT model from {ckpt_dir}")
-        model = PeftModel.from_pretrained(model, ckpt_dir)
-        print("#" * 100)
-
-    else:
-        print("#" * 50)
-        logging.warning(
-            f"evaluating the baseline model {train_config.model_name}, NOT a fine-tuned checkpoint"
-        )
-        print("#" * 50)
 
     splits_to_keep = ("train", "validation", "test") if not eval_task_file else None
     print(f"splits_to_keep is {splits_to_keep}")
