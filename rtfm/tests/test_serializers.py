@@ -720,11 +720,11 @@ class TestPandasSeriesSerializer(unittest.TestCase):
         )
         expected = pd.Series(
             {
-                "features": {k: {"value": v} for k, v in dummy_input.items()},
+                "task_context": task_context_text,
                 "prefix": prefix_text,
+                "features": {k: {"value": v} for k, v in dummy_input.items()},
                 "suffix": suffix_text,
                 "choices": choices_text,
-                "task_context": task_context_text,
             }
         )
         serialized_parsed = self._try_parse_serialized(serialized)
@@ -800,7 +800,7 @@ class TestHtmlNoWhitespaceSerializer(unittest.TestCase):
             suffix_text=suffix_text,
             choices=["2", "1", "0"],
         )
-        expected = "<table border=\"1\" class=\"dataframe\"><thead><tr style=\"text-align: right;\"><th></th><th>0</th></tr></thead><tbody><tr><th>features</th><td>{'float_feature': {'value': -0.004}, 'bool_feature': {'value': True}, 'int_feature': {'value': 5968}, 'str_feature': {'value': 'my_category'}}</td></tr><tr><th>prefix</th><td>This is an observation drawn from a dataset.</td></tr><tr><th>suffix</th><td>What is the label??</td></tr><tr><th>choices</th><td>2 or 1 or 0</td></tr><tr><th>task_context</th><td>This is the task context, which provides context.</td></tr></tbody></table>"
+        expected = "<table border=\"1\" class=\"dataframe\"><thead><tr style=\"text-align: right;\"><th></th><th>0</th></tr></thead><tbody><tr><th>task_context</th><td>This is the task context, which provides context.</td></tr><tr><th>prefix</th><td>This is an observation drawn from a dataset.</td></tr><tr><th>features</th><td>{'float_feature': {'value': -0.004}, 'bool_feature': {'value': True}, 'int_feature': {'value': 5968}, 'str_feature': {'value': 'my_category'}}</td></tr><tr><th>suffix</th><td>What is the label??</td></tr><tr><th>choices</th><td>2 or 1 or 0</td></tr></tbody></table>"
         self.assertEqual(serialized, expected)
         self.assertIsNone(re.search(">\s+<", serialized))
 
@@ -816,21 +816,6 @@ class TestHtmlSerializer(unittest.TestCase):
         # Check that the output literally parses into the correct Pandas object.
         serialized = serializer(dummy_input, None)
         expected = "<table border=\"1\" class=\"dataframe\">\n  <thead>\n    <tr style=\"text-align: right;\">\n      <th></th>\n      <th>0</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <th>features</th>\n      <td>{'float_feature': {'value': -768.25}, 'int_feature': {'value': -25}, 'str_feature': {'value': 'my_category'}}</td>\n    </tr>\n  </tbody>\n</table>"
-
-        # <table border="1" class="dataframe">
-        #   <thead>
-        #     <tr style="text-align: right;">
-        #       <th></th>
-        #       <th>0</th>
-        #     </tr>
-        #   </thead>
-        #   <tbody>
-        #     <tr>
-        #       <th>features</th>
-        #       <td>{'float_feature': {'value': -768.25}, 'int_feature': {'value': -25}, 'str_feature': {'value': 'my_category'}}</td>
-        #     </tr>
-        #   </tbody>
-        # </table>
 
         self.assertEqual(serialized, expected)
 
@@ -849,20 +834,6 @@ class TestHtmlSerializer(unittest.TestCase):
         serialized = serializer(dummy_input, meta=meta)
         expected = "<table border=\"1\" class=\"dataframe\">\n  <thead>\n    <tr style=\"text-align: right;\">\n      <th></th>\n      <th>0</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <th>features</th>\n      <td>{'float_feature': {'value': -1e-06, 'quantile': 0.99, 'scale': -0.2}, 'int_feature': {'value': -1, 'quantile': 0.01, 'scale': -0.99}, 'str_feature': {'value': 'my_category'}}</td>\n    </tr>\n  </tbody>\n</table>"
 
-        # <table border="1" class="dataframe">
-        #   <thead>
-        #     <tr style="text-align: right;">
-        #       <th></th>
-        #       <th>0</th>
-        #     </tr>
-        #   </thead>
-        #   <tbody>
-        #     <tr>
-        #       <th>features</th>
-        #       <td>{'float_feature': {'value': -1e-06, 'quantile': 0.99, 'scale': -0.2}, 'int_feature': {'value': -1, 'quantile': 0.01, 'scale': -0.99}, 'str_feature': {'value': 'my_category'}}</td>
-        #     </tr>
-        #   </tbody>
-        # </table>
         self.assertEqual(serialized, expected)
 
     def test_html_serializer_with_prefix_suffix_choices(self):
@@ -884,37 +855,7 @@ class TestHtmlSerializer(unittest.TestCase):
             suffix_text=suffix_text,
             choices=["2", "1", "0"],
         )
-        expected = "<table border=\"1\" class=\"dataframe\">\n  <thead>\n    <tr style=\"text-align: right;\">\n      <th></th>\n      <th>0</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <th>features</th>\n      <td>{'float_feature': {'value': -0.004}, 'bool_feature': {'value': True}, 'int_feature': {'value': 5968}, 'str_feature': {'value': 'my_category'}}</td>\n    </tr>\n    <tr>\n      <th>prefix</th>\n      <td>This is an observation drawn from a dataset.</td>\n    </tr>\n    <tr>\n      <th>suffix</th>\n      <td>What is the label??</td>\n    </tr>\n    <tr>\n      <th>choices</th>\n      <td>2 or 1 or 0</td>\n    </tr>\n    <tr>\n      <th>task_context</th>\n      <td>This is the task context, which provides context.</td>\n    </tr>\n  </tbody>\n</table>"
-        # <table border="1" class="dataframe">
-        #   <thead>
-        #     <tr style="text-align: right;">
-        #       <th></th>
-        #       <th>0</th>
-        #     </tr>
-        #   </thead>
-        #   <tbody>
-        #     <tr>
-        #       <th>features</th>
-        #       <td>{'float_feature': {'value': -0.004}, 'bool_feature': {'value': True}, 'int_feature': {'value': 5968}, 'str_feature': {'value': 'my_category'}}</td>
-        #     </tr>
-        #     <tr>
-        #       <th>prefix</th>
-        #       <td>This is an observation drawn from a dataset.</td>
-        #     </tr>
-        #     <tr>
-        #       <th>suffix</th>
-        #       <td>What is the label??</td>
-        #     </tr>
-        #     <tr>
-        #       <th>choices</th>
-        #       <td>2 or 1 or 0.</td>
-        #     </tr>
-        #     <tr>
-        #       <th>task_context</th>
-        #       <td>This is the task context, which provides context.</td>
-        #     </tr>
-        #   </tbody>
-        # </table>
+        expected = "<table border=\"1\" class=\"dataframe\">\n  <thead>\n    <tr style=\"text-align: right;\">\n      <th></th>\n      <th>0</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <th>task_context</th>\n      <td>This is the task context, which provides context.</td>\n    </tr>\n    <tr>\n      <th>prefix</th>\n      <td>This is an observation drawn from a dataset.</td>\n    </tr>\n    <tr>\n      <th>features</th>\n      <td>{'float_feature': {'value': -0.004}, 'bool_feature': {'value': True}, 'int_feature': {'value': 5968}, 'str_feature': {'value': 'my_category'}}</td>\n    </tr>\n    <tr>\n      <th>suffix</th>\n      <td>What is the label??</td>\n    </tr>\n    <tr>\n      <th>choices</th>\n      <td>2 or 1 or 0</td>\n    </tr>\n  </tbody>\n</table>"
         self.assertEqual(serialized, expected)
 
 
@@ -934,7 +875,7 @@ class TestJsonSerializer(unittest.TestCase):
         self.assertEqual(serialized, expected)
 
     def test_json_serializer_with_meta(self):
-        """Test HtmlSerializer with meta features."""
+        """Test JsonSerializer with meta features."""
         serializer = JsonSerializer(config=SerializerConfig())
         dummy_input = {
             "float_feature": -1e-6,
@@ -961,7 +902,6 @@ class TestJsonSerializer(unittest.TestCase):
         task_context_text = "This is the task context, which provides context."
         prefix_text = "This is an observation drawn from a dataset."
         suffix_text = "What is the label??"
-        choices_text = "2 or 1 or 0."
         serialized = serializer(
             dummy_input,
             task_context_text=task_context_text,
@@ -969,8 +909,7 @@ class TestJsonSerializer(unittest.TestCase):
             suffix_text=suffix_text,
             choices=["2", "1", "0"],
         )
-        expected = '{"features": {"float_feature": {"value": -0.004}, "bool_feature": {"value": true}, "int_feature": {"value": 5968}, "str_feature": {"value": "my_category"}}, "prefix": "This is an observation drawn from a dataset.", "suffix": "What is the label??", "choices": ["2", "1", "0"], "task_context": "This is the task context, which provides context."}'
-
+        expected = '{"task_context": "This is the task context, which provides context.", "prefix": "This is an observation drawn from a dataset.", "features": {"float_feature": {"value": -0.004}, "bool_feature": {"value": true}, "int_feature": {"value": 5968}, "str_feature": {"value": "my_category"}}, "suffix": "What is the label??", "choices": ["2", "1", "0"]}'
         self.assertEqual(serialized, expected)
 
     def test_json_serializer_with_prefix_suffix_choices_meta(self):
@@ -998,6 +937,6 @@ class TestJsonSerializer(unittest.TestCase):
             suffix_text=suffix_text,
             choices=["2", "1", "0"],
         )
-        expected = '{"features": {"float_feature": {"value": -0.004, "quantile": 0.0099, "scale": -0.2}, "bool_feature": {"value": true}, "int_feature": {"value": 5968, "quantile": 0.01, "scale": -0.99}, "str_feature": {"value": "my_category"}}, "prefix": "This is an observation drawn from a dataset.", "suffix": "What is the label??", "choices": ["2", "1", "0"], "task_context": "This is the task context, which provides context."}'
+        expected = '{"task_context": "This is the task context, which provides context.", "prefix": "This is an observation drawn from a dataset.", "features": {"float_feature": {"value": -0.004, "quantile": 0.0099, "scale": -0.2}, "bool_feature": {"value": true}, "int_feature": {"value": 5968, "quantile": 0.01, "scale": -0.99}, "str_feature": {"value": "my_category"}}, "suffix": "What is the label??", "choices": ["2", "1", "0"]}'
 
         self.assertEqual(serialized, expected)
