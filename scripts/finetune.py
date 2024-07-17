@@ -407,6 +407,7 @@ def main(
     # Start the training process
     results = train(
         model,
+        tokenizer,
         train_dataloader,
         eval_dataloader,
         optimizer,

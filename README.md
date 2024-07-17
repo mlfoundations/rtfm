@@ -46,8 +46,8 @@ python scripts/finetune.py \
   --num_workers_dataloader 0 \
   --max_steps 10 \
   --model_name "yujiepan/llama-2-tiny-random" \
-  --dist_checkpoint_root_folder "checkpoints" \
-  --dist_checkpoint_folder "my_model_dir" \
+  --save_checkpoint_root_dir "checkpoints" \
+  --run_name "my_model_dir" \
   --save_model \
   --save_optimizer
 ```
@@ -175,8 +175,8 @@ python scripts/finetune.py \
   --num_workers_dataloader 0 \
   --max_steps 10 \
   --model_name "yujiepan/llama-2-tiny-random" \
-  --dist_checkpoint_root_folder "checkpoints" \
-  --dist_checkpoint_folder "my_model_dir" \
+  --save_checkpoint_root_dir "checkpoints" \
+  --run_name "my_model_dir" \
   --save_model \
   --save_optimizer
 ```

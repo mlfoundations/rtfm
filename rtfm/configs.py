@@ -1,14 +1,13 @@
-import time
+import os.path
 from dataclasses import dataclass, field
 from typing import Optional, List, Literal, Sequence, Any
 
-from llama_recipes.configs.training import train_config
 from torch.distributed.fsdp import ShardingStrategy
 from torch.distributed.fsdp.fully_sharded_data_parallel import StateDictType
 
 
 @dataclass
-class TrainConfig(train_config):
+class TrainConfig:
     max_steps: int = 16
     warmup_steps: Optional[int] = None
     warmup_ratio: float = 0.0
@@ -24,12 +23,69 @@ class TrainConfig(train_config):
     shuffle_random_seed: int = 42
     eval_open_vocabulary: bool = True
     eval_closed_vocabulary: bool = False
-    run_name: str = field(default_factory=lambda: str(int(time.time())))
     eval_max_samples: Optional[int] = 1024
     report_to: Sequence[Any] = field(default_factory=lambda: tuple())
     # torch.compile args
     torch_compile: bool = False
     torch_compile_fullgraph: bool = True  # set to False if graph is not static.
+    # Below are params that originally were part of
+    # llama_recipes.configs.training.train_config class.
+    model_name: str = "meta-llama/Meta-Llama-3-8B"
+    enable_fsdp: bool = False
+    low_cpu_fsdp: bool = False
+    run_validation: bool = True
+    batch_size_training: int = 4
+    batching_strategy: str = "packing"  # alternative: padding
+    context_length: int = 8192
+    gradient_accumulation_steps: int = 1
+    gradient_clipping: bool = False
+    gradient_clipping_threshold: float = 1.0
+    num_workers_dataloader: int = 1
+    lr: float = 1e-4
+    weight_decay: float = 0.0
+    seed: int = 42
+    use_fp16: bool = False
+    mixed_precision: bool = True
+    val_batch_size: int = 1
+    peft_method: str = "None"  # None , llama_adapter, prefix, lora
+    use_peft: bool = False
+    freeze_layers: bool = False
+    num_freeze_layers: int = 1
+    quantization: bool = False
+    save_model: bool = False
+    save_checkpoint_root_dir: str = "checkpoints"  # will be used if using FSDP
+    run_name: str = "fine-tuned"  # will be used if using FSDP
+    save_optimizer: bool = False  # will be used if using FSDP
+    use_fast_kernels: bool = False  # Enable using SDPA from PyTroch Accelerated Transformers, make use Flash Attention and Xformer memory-efficient kernels
+    use_wandb: bool = True  # Enable wandb for experient tracking
+    save_metrics: bool = (
+        False  # saves training metrics to a json file for later plotting
+    )
+
+    @property
+    def output_dir(self) -> str:
+        return os.path.join(self.save_checkpoint_root_dir, self.run_name)
+
+    def make_save_folder_name(self, step: Optional[int] = None) -> str:
+        """Encapsulates the llama-recipes logic for building a folder name.
+
+        Instead of duplicating this code in many places, we implement it in a single reusable function here.
+
+        If step is not provided, this function returns the parent checkpoint directory for the TrainConfig.
+
+        If step is provided, this function returns the directory for a specific step (a subdirectory inside the parent directory).
+        """
+        base_dir = (
+            self.save_checkpoint_root_dir
+            + "/"
+            + self.run_name
+            + "-"
+            + self.model_name.split("/")[-1]
+        )
+        if not step:
+            return base_dir
+        else:
+            return base_dir + "/" + f"step-{step}"
 
 
 @dataclass

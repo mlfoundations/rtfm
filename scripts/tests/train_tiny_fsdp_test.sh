@@ -18,8 +18,8 @@ python scripts/finetune.py \
   --warmup_steps 4 \
   --num_workers_dataloader 8 \
   --max_steps 16 \
-  --dist_checkpoint_root_folder "checkpoints" \
-  --dist_checkpoint_folder "fsdp_test" \
+  --save_checkpoint_root_dir "checkpoints" \
+  --run_name "fsdp_test" \
   --save_model \
   --save_optimizer \
   --enable_fsdp \
