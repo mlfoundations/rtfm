@@ -12,7 +12,7 @@ import transformers
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
 from rtfm.arguments import DataArguments
-from rtfm.configs import TrainConfig, TokenizerConfig, SerializerConfig
+from rtfm.configs import TrainConfig, SerializerConfig
 from rtfm.evaluation.evaluation_utils import (
     prepare_eval_kwargs,
     prepare_eval_datasets,
@@ -43,13 +43,11 @@ transformers.logging.set_verbosity_info()
 def main(
     data_arguments: DataArguments,
     train_config: TrainConfig,
-    tokenizer_config: TokenizerConfig,
     serializer_config: SerializerConfig,
     outfile: str,
     split: str,
     eval_task_names: Optional[str] = None,
     eval_task_file: Optional[str] = None,
-    use_fast_kernels: bool = False,
     overwrite: bool = False,
 ):
     if os.path.exists(outfile) and not overwrite:
@@ -163,7 +161,7 @@ def main(
 
 if __name__ == "__main__":
     parser = transformers.HfArgumentParser(
-        (DataArguments, TrainConfig, TokenizerConfig, SerializerConfig)
+        (DataArguments, TrainConfig, SerializerConfig)
     )
 
     parser.add_argument(
@@ -193,7 +191,6 @@ if __name__ == "__main__":
     (
         data_args,
         train_config,
-        tokenizer_config,
         serializer_config,
         other_args,
     ) = parser.parse_args_into_dataclasses()
@@ -201,7 +198,6 @@ if __name__ == "__main__":
     main(
         data_arguments=data_args,
         train_config=train_config,
-        tokenizer_config=tokenizer_config,
         serializer_config=serializer_config,
         **vars(other_args),
     )
