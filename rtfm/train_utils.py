@@ -65,33 +65,11 @@ def load_model_from_checkpoint(model, ckpt_dir) -> Tuple[torch.nn.Module, int]:
     return model, int(step)
 
 
-def make_save_folder_name(cfg: TrainConfig, step: Optional[int] = None) -> str:
-    """Encapsulates the llama-recipes logic for building a folder name.
-
-    Instead of duplicating this code in many places, we implement it in a single reusable function here.
-
-    If step is not provided, this function returns the parent checkpoint directory for the TrainConfig.
-
-    If step is provided, this function returns the directory for a specific step (a subdirectory inside the parent directory).
-    """
-    base_dir = (
-        cfg.dist_checkpoint_root_folder
-        + "/"
-        + cfg.dist_checkpoint_folder
-        + "-"
-        + cfg.model_name.split("/")[-1]
-    )
-    if not step:
-        return base_dir
-    else:
-        return base_dir + "/" + f"step-{step}"
-
-
 def save_state_dict_to_default_directory(
     state_dict: Dict[str, torch.Tensor], cfg: TrainConfig, step: int, filename: str
 ):
     """Save an arbitrary state dict using a consistent path and file naming schema."""
-    save_dir = make_save_folder_name(cfg, step)
+    save_dir = cfg.make_save_folder_name(step)
     os.makedirs(save_dir, exist_ok=True)
 
     save_full_path = os.path.join(save_dir, filename)
@@ -118,7 +96,7 @@ def save_model_and_optimizer_unsharded(
     """Saving model via rank0 cpu streaming and full_state_dict, if FSDP is used."""
 
     # create save path
-    save_dir = make_save_folder_name(cfg, step)
+    save_dir = cfg.make_save_folder_name(step)
     os.makedirs(save_dir, exist_ok=True)
 
     optim_state = None
@@ -211,7 +189,7 @@ def save_train_state(
 
     # Remove checkpoints if too many have accumulated.
     if train_config.save_total_limit and is_main_process:
-        save_dir = make_save_folder_name(train_config)
+        save_dir = train_config.make_save_folder_name()
         ckpt_dirs = [x for x in glob.glob(os.path.join(save_dir, "*step*"))]
 
         # Sort oldest-first
@@ -228,6 +206,7 @@ def save_train_state(
 
 def train(
     model,
+    tokenizer,
     train_dataloader,
     eval_dataloader,
     optimizer,
@@ -392,9 +371,16 @@ def train(
     pbar.close()
 
     if train_config.save_model:
+        # save the state in .pt format
         checkpoint_end_time = save_train_state(
             train_config, model, optimizer, lr_scheduler, rank, fsdp_config, step
         )
+        # save in hugging face format
+        logging.warning(
+            f"saving model in hugging face format to {train_config.output_dir}"
+        )
+        model.save_pretrained(save_directory=train_config.make_save_folder_name())
+        tokenizer.save_pretrained(save_directory=train_config.make_save_folder_name())
 
     if train_config.run_validation:
         evaluate(

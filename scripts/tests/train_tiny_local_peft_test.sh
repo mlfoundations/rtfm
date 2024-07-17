@@ -24,12 +24,12 @@ python scripts/finetune.py \
   --r 8 \
   --lora_alpha 32 \
   --model_name "yujiepan/llama-2-tiny-random" \
-  --dist_checkpoint_root_folder "checkpoints" \
-  --dist_checkpoint_folder "tiny_trainer" \
+  --save_checkpoint_root_dir "checkpoints" \
+  --run_name "tiny_trainer" \
   --save_model \
   --save_optimizer
 
-# the model is saved at <dist_checkpoint_root_folder>/<dist_checkpoint_folder>-<model_name>
+# the model is saved at <save_checkpoint_root_dir>/<run_name>-<model_name>
 OUTPUT_DIR="checkpoints/tiny_trainer-yujiepan/llama-2-tiny-random/"
 echo "got the following output files at ${OUTPUT_DIR}:"
 ls $OUTPUT_DIR
