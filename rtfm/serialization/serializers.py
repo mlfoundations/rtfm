@@ -534,15 +534,16 @@ class BaseDictBasedSerializer(RowSerializer):
                 feature_dict.update(k_metafeatures)
             keys_and_values[k] = feature_dict
 
-        df_dict = {"features": keys_and_values}
+        df_dict = {}
+        if task_context_text:
+            df_dict["task_context"] = task_context_text
         if prefix_text:
             df_dict["prefix"] = prefix_text
+        df_dict["features"] = keys_and_values
         if suffix_text:
             df_dict["suffix"] = suffix_text
         if choices:
             df_dict["choices"] = choices
-        if task_context_text:
-            df_dict["task_context"] = task_context_text
         return df_dict
 
     def __call__(
