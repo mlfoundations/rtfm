@@ -37,6 +37,10 @@ from rtfm.task_config import (
     TLMConfig,
 )
 
+_HF_VERSION_MAJOR, _HF_VERSION_MINOR, _ = [
+    int(x) for x in transformers.__version__.split(".")
+]
+
 
 def _tokenize_fn(
     strings: Sequence[str],
@@ -126,7 +130,10 @@ def prepare_4d_attention_mask(instances: Sequence[Dict]) -> np.ndarray:
     attention_mask = np.expand_dims(
         attention_mask, axis=1
     )  # shape [batch_size, 1, seq_len, seq_len]
-    return attention_mask
+    if _HF_VERSION_MAJOR == 4 and _HF_VERSION_MINOR <= 41:
+        return attention_mask
+    else:
+        return 1 - attention_mask
 
 
 @dataclass
