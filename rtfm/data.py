@@ -132,8 +132,9 @@ def prepare_4d_attention_mask(
     attention_mask = np.expand_dims(
         attention_mask, axis=1
     )  # shape [batch_size, 1, seq_len, seq_len]
+    attention_mask = torch.from_numpy(attention_mask)
     if _HF_VERSION_MAJOR == 4 and _HF_VERSION_MINOR < 41:
-        return torch.from_numpy(attention_mask).to(dtype=output_dtype)
+        return attention_mask.to(dtype=output_dtype)
     else:
         # Convert as in transformers, here:
         # https://github.com/huggingface/transformers/blob/c85510f958e6955d88ea1bafb4f320074bfbd0c1/src/transformers/modeling_attn_mask_utils.py#L331
