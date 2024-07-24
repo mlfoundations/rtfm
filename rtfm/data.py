@@ -111,7 +111,9 @@ def example_ids_to_attention_mask(example_ids: List[int]) -> np.ndarray:
     return mask
 
 
-def prepare_4d_attention_mask(instances: Sequence[Dict]) -> np.ndarray:
+def prepare_4d_attention_mask(
+    instances: Sequence[Dict], output_dtype: torch.dtype
+) -> torch.Tensor:
     # each attention mask is of shape [seq_len, seq_len]
     attention_masks = [
         example_ids_to_attention_mask(x["example_ids"]) for x in instances
@@ -130,10 +132,16 @@ def prepare_4d_attention_mask(instances: Sequence[Dict]) -> np.ndarray:
     attention_mask = np.expand_dims(
         attention_mask, axis=1
     )  # shape [batch_size, 1, seq_len, seq_len]
-    if _HF_VERSION_MAJOR == 4 and _HF_VERSION_MINOR <= 41:
-        return attention_mask
+    if _HF_VERSION_MAJOR == 4 and _HF_VERSION_MINOR < 41:
+        return torch.from_numpy(attention_mask).to(dtype=output_dtype)
     else:
-        return 1 - attention_mask
+        # Convert as in transformers, here:
+        # https://github.com/huggingface/transformers/blob/c85510f958e6955d88ea1bafb4f320074bfbd0c1/src/transformers/modeling_attn_mask_utils.py#L331
+        inverted_mask = 1.0 - attention_mask
+        attention_mask = inverted_mask.masked_fill(
+            inverted_mask.to(torch.bool), torch.finfo(output_dtype).min
+        )
+        return attention_mask
 
 
 @dataclass
@@ -142,6 +150,7 @@ class DataCollatorForSupervisedDataset(object):
 
     tokenizer: transformers.PreTrainedTokenizer
     use_position_ids: bool = True
+    attention_mask_dtype: torch.dtype = torch.bfloat16
 
     def __call__(self, instances: Sequence[Dict]) -> Dict[str, torch.Tensor]:
         input_ids, labels = tuple(
@@ -160,8 +169,10 @@ class DataCollatorForSupervisedDataset(object):
 
         if any("example_ids" in x for x in instances):
             # Case: this is a packed batch. Prepare the 4d attention mask, and the position IDs.
-            attention_mask = prepare_4d_attention_mask(instances)
-            attention_mask = torch.from_numpy(attention_mask).to(input_ids.device)
+            attention_mask = prepare_4d_attention_mask(
+                instances, self.attention_mask_dtype
+            )
+            attention_mask = attention_mask.to(input_ids.device)
             output.update(dict(attention_mask=attention_mask))
             if self.use_position_ids:
                 position_ids = torch.LongTensor(
