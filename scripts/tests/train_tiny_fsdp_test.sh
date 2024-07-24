@@ -10,7 +10,7 @@ conda activate rtfm
 
 echo 'running training script'
 
-python scripts/finetune.py \
+python -m rtfm.finetune \
   --train-task-file "tablib-sample/train-files.txt" \
   --eval-task-file "tablib-sample/eval-files.txt" \
   --run_validation "False" \

@@ -37,7 +37,7 @@ Once you have set up your environment, you can train models using the Python scr
 As an example, to conduct a training run with a small toy model, run:
 
 ```shell
-python scripts/finetune.py \
+python -m rtfm.finetune \
   --train-task-file "./sampledata/v6.0.3-serialized/test/test-files.txt" \
   --eval-task-file "./sampledata/v6.0.3-serialized/train/train-files.txt" \
   --run_validation "False" \
@@ -166,7 +166,7 @@ of `serialize_interleave_and_shuffle.py` (`train-files.txt`, `traineval-files.tx
 The recommended way to launch a training job is via `finetune.py`. You can do this, for example, via:
 
 ```shell
-python scripts/finetune.py \
+python -m rtfm.finetune \
   --train-task-file "./sampledata/v6.0.3-serialized/test/test-files.txt" \
   --eval-task-file "./sampledata/v6.0.3-serialized/train/train-files.txt" \
   --run_validation "False" \
