@@ -20,7 +20,7 @@ from llama_recipes.model_checkpointing.checkpoint_handler import (
     fullstate_save_policy,
 )
 from llama_recipes.utils.memory_utils import MemoryTrace
-from llama_recipes.utils.train_utils import save_train_params
+from rtfm.hf_utils import save_hf_model_and_tokenizer
 from safetensors import safe_open
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 from torch.distributed.fsdp import (
@@ -379,8 +379,7 @@ def train(
         logging.warning(
             f"saving model in hugging face format to {train_config.output_dir}"
         )
-        model.save_pretrained(save_directory=train_config.make_save_folder_name())
-        tokenizer.save_pretrained(save_directory=train_config.make_save_folder_name())
+        save_hf_model_and_tokenizer(model, tokenizer, train_config)
 
     if train_config.run_validation:
         evaluate(
@@ -392,10 +391,6 @@ def train(
             wandb_run,
             max_batches=train_config.eval_max_batches,
         )
-
-    # saving the training params including fsdp setting for reference.
-    if train_config.enable_fsdp and not train_config.use_peft and rank == 0:
-        save_train_params(train_config, fsdp_config, rank)
 
     return
 
