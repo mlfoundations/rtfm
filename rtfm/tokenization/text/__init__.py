@@ -5,7 +5,6 @@ from typing import Optional, Dict, Tuple, Sequence, Callable
 import numpy as np
 import torch
 import transformers
-
 from rtfm import special_tokens as tok
 from rtfm.hf_utils import fetch_auth_token
 from rtfm.special_tokens import DEFAULT_PAD_TOKEN, IGNORE_INDEX
@@ -135,16 +134,23 @@ def sanity_check_tokenizer(tokenizer, model_name):
         and "2" in model_name
         and len(tokenizer.vocab) < 128_254
     ):
+        # Case: this is llama 2 model.
         eoc_token_id_expected = 32000
         qa_token_id_expected = 32001
-        choices_sep_token_expected = 8876  # this token is already in llama3 vocab
+        choices_sep_token_expected = 8876  # this token is already in llama2 vocab
 
     elif (
         "llama" in model_name.lower() and "3" in model_name and len(tokenizer) > 128254
     ) or ("tabula-8b" in model_name.lower()):
+        # Case: this is llama 3 model.
         eoc_token_id_expected = 128256
         qa_token_id_expected = 128257
         choices_sep_token_expected = 8651  # this token is already in llama3 vocab
+    elif "llama" in mode_name.lower() and len(tokenizer) == 32000:
+        # Case: this is llama 1 model.
+        eoc_token_id_expected = 32000
+        qa_token_id_expected = 32001
+        choices_sep_token_expected = 32002
     else:
         raise ValueError(f"unknown model name: {model_name}")
 
