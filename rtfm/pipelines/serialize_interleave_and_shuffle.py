@@ -34,8 +34,8 @@ from rtfm.configs import SerializerConfig
 from rtfm.data import (
     build_formatted_df_from_file,
     example_map_fn,
-    NoTargetCandidatesError,
 )
+from rtfm.datasets.target_selection import NoTargetCandidatesError
 from rtfm.pipelines.pipeline_utils import Resharder, PipelineConfig
 from rtfm.serialization.serializers import get_serializer
 
