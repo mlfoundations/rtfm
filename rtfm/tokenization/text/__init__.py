@@ -146,7 +146,8 @@ def sanity_check_tokenizer(tokenizer, model_name):
         eoc_token_id_expected = 128256
         qa_token_id_expected = 128257
         choices_sep_token_expected = 8651  # this token is already in llama3 vocab
-    elif "llama" in model_name.lower() and len(tokenizer) == 32000:
+
+    elif "llama" in model_name.lower() and len(tokenizer.vocab) < 128_254:
         # Case: this is llama 1 model.
         eoc_token_id_expected = 32000
         qa_token_id_expected = 32001
