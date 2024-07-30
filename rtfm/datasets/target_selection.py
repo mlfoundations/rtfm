@@ -19,7 +19,10 @@ def is_numeric_series(vals: Union[pd.Series, Sequence[str]]) -> bool:
 class TargetSelector(ABC):
     @abstractmethod
     def __call__(self, df: pd.DataFrame) -> Tuple[str, Sequence[str]]:
-        """Select a target column from the columns in df."""
+        """Select a target column from the columns in df.
+
+        This method returns the name of the target column, and a Sequence of
+        its unique values."""
         raise
 
 
