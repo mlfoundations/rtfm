@@ -151,7 +151,7 @@ def sanity_check_tokenizer(tokenizer, model_name):
         # Case: this is llama 1 model.
         eoc_token_id_expected = 32000
         qa_token_id_expected = 32001
-        choices_sep_token_expected = 32002
+        choices_sep_token_expected = 8876
     else:
         raise ValueError(f"unknown model name: {model_name}")
 
