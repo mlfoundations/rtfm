@@ -1,13 +1,11 @@
 import json
 from typing import Dict, Any, Tuple, Literal
 
-import numpy as np
 import pandas as pd
 import tableshift
 import torch
 from ray import tune
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.preprocessing import LabelEncoder
@@ -79,6 +77,142 @@ def tune_xgb(X_tr: pd.DataFrame, y_tr: pd.Series, n_trials, num_classes: int = 2
             "using default params."
         )
         return clf.fit(X_tr, y_tr)
+
+
+#
+# def get_categorical_idxs(df):
+#     # Get a boolean mask for columns that are neither numeric nor boolean
+#     categorical_mask = ~(df.dtypes.isin([np.number, bool]))
+#
+#     # Get the column indices where the mask is True
+#     categorical_indices = np.where(categorical_mask)[0].tolist()
+#
+#     return categorical_indices
+#
+#
+# def tune_catboost(X_tr, y_tr, num_trials: int):
+#     def _optimize_hp(trial: optuna.trial.Trial, use_gpu=False, random_seed=42):
+#         cb_params = {
+#             # Same tuning grid as https://arxiv.org/abs/2106.11959,
+#             # see supplementary section F.4.
+#             "learning_rate": trial.suggest_float("learning_rate", 1e-3, 1.0, log=True),
+#             "depth": trial.suggest_int("depth", 3, 10),
+#             "bagging_temperature": trial.suggest_float(
+#                 "bagging_temperature", 1e-6, 1.0, log=True
+#             ),
+#             "l2_leaf_reg": trial.suggest_int("l2_leaf_reg", 1, 100, log=True),
+#             "leaf_estimation_iterations": trial.suggest_int(
+#                 "leaf_estimation_iterations", 1, 10
+#             ),
+#             "use_best_model": True,
+#             "task_type": "GPU" if use_gpu else "CPU",
+#             "random_seed": random_seed,
+#         }
+#         model = CatBoostClassifier(**cb_params, cat_features=get_categorical_idxs(X_tr))
+#         model.fit(X_tr, y_tr, verbose=False)
+#         y_pred = model.predict(X_tr)
+#         return accuracy_score(y_tr, y_pred)
+#
+#     study = optuna.create_study(direction="maximize")
+#     study.optimize(_optimize_hp)
+#     clf_with_best_params = CatBoostClassifier(**study.best_trial.params)
+#     clf_with_best_params = clf_with_best_params.fit(X_tr, y_tr)
+#     return clf_with_best_params
+
+
+def get_categorical_idxs(df):
+    # Get a boolean mask for columns that are neither numeric nor boolean
+    categorical_mask = ~(df.dtypes.isin([np.number, bool]))
+
+    # Get the column indices where the mask is True
+    categorical_indices = np.where(categorical_mask)[0].tolist()
+
+    return categorical_indices
+
+
+from catboost import CatBoostClassifier, Pool
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+import numpy as np
+import pandas as pd
+
+from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.pipeline import Pipeline
+import pandas as pd
+
+
+class ColumnCaster(BaseEstimator, TransformerMixin):
+    def __init__(self, columns_to_cast):
+        self.columns_to_cast = columns_to_cast
+        self.target_dtype = str
+
+    def fit(self, X, y=None):
+        return self
+
+    def transform(self, X):
+        for col in self.columns_to_cast:
+            X.iloc[:, col] = X.iloc[:, col].astype(self.target_dtype)
+        return X
+
+
+def tune_catboost(X, y, n_iter=10, cv=3):
+    # Define parameter distributions
+    param_distributions = {
+        # Same tuning grid as https://arxiv.org/abs/2106.11959,
+        # see supplementary section F.4.
+        "learning_rate": np.logspace(-3, 0),
+        "depth": np.arange(3, 11),
+        "bagging_temperature": np.logspace(-6, 0),
+        "l2_leaf_reg": np.logspace(0, 10),
+        "leaf_estimation_iterations": np.arange(1, 10),
+    }
+
+    cat_features = get_categorical_idxs(X)
+
+    # Catboost requires that all categorical features are of type string.
+    column_caster = ColumnCaster(cat_features)
+    X = column_caster.transform(X)
+
+    cv = min(len(X), 3)
+
+    if len(X) > 1 and (all(y.value_counts() > cv)) and n_iter > 1:
+        # Define the model
+        model = CatBoostClassifier(
+            iterations=500,  # we'll use early stopping, so this is the maximum number of iterations
+            random_state=42,
+            verbose=0,
+        )
+
+        # Create pools
+        train_pool = Pool(X, y, cat_features=cat_features)
+
+        # Perform randomized search
+        grid_search_result = model.randomized_search(
+            param_distributions,
+            X=train_pool,
+            y=None,  # y is already in the train_pool
+            n_iter=n_iter,
+            cv=cv,
+            refit=True,  # refit the model on the whole dataset after search
+            shuffle=True,
+            verbose=False,
+            plot=False,
+        )
+    else:
+        model = CatBoostClassifier(
+            iterations=500,  # we'll use early stopping, so this is the maximum number of iterations
+            random_state=42,
+            verbose=0,
+            cat_features=cat_features,
+        )
+        model = model.fit(X, y)
+
+    # # Get the best model
+    # best_model = grid_search_result["params"]
+
+    pipe = Pipeline([("caster", column_caster), ("catboost", model)])
+
+    return pipe
 
 
 def tune_logistic_regression(X_tr, y_tr, num_trials):
@@ -173,6 +307,8 @@ def train_tune_and_compute_metrics(
         clf = tune_tabpfn(X_tr, y_tr, n_trials)
     elif model_type == "logistic_regression":
         clf = tune_logistic_regression(X_tr, y_tr, num_trials=n_trials)
+    elif model_type == "catboost":
+        clf = tune_catboost(X_tr, y_tr, n_iter=n_trials)
 
     preds = clf.predict(X_te)
     acc = accuracy_score(preds, y_te)
