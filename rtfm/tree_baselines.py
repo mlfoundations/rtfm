@@ -161,7 +161,9 @@ from sklearn.pipeline import Pipeline
 import torch  # for GPU detection
 
 
-def tune_catboost(X, y, n_iter=10, cv=3):
+def tune_catboost(
+    X, y, n_iter=10, cv=3, catboost_iterations=100, catboost_early_stopping_rounds=5
+):
     # Define parameter distributions
     param_distributions = {
         "learning_rate": np.logspace(-3, 0),
@@ -183,14 +185,17 @@ def tune_catboost(X, y, n_iter=10, cv=3):
     task_type = "GPU" if torch.cuda.is_available() else "CPU"
     print(f"CatBoost will use: {task_type}")
 
+    eval_metric = "Logloss"
     if len(X) > 1 and (all(y.value_counts() > cv)) and n_iter > 1:
         # Define the model
         model = CatBoostClassifier(
-            iterations=500,
+            iterations=catboost_iterations,
+            early_stopping_rounds=catboost_early_stopping_rounds,
             random_state=42,
             verbose=1,
             task_type=task_type,  # Use GPU if available
             devices="0",  # Use first available GPU
+            eval_metric=eval_metric,
         )
 
         # Create pools
@@ -207,15 +212,19 @@ def tune_catboost(X, y, n_iter=10, cv=3):
             shuffle=True,
             verbose=False,
             plot=False,
+            early_stopping_rounds=catboost_early_stopping_rounds,
+            thread_count=-1,  # Use all available CPU cores
         )
     else:
         model = CatBoostClassifier(
-            iterations=500,
+            iterations=catboost_iterations,
+            early_stopping_rounds=catboost_early_stopping_rounds,
             random_state=42,
             verbose=1,
             cat_features=cat_features,
             task_type=task_type,  # Use GPU if available
             devices="0",  # Use first available GPU
+            eval_metric=eval_metric,
         )
         model = model.fit(X, y)
 
