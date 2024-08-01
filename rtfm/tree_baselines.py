@@ -162,7 +162,7 @@ import torch  # for GPU detection
 
 
 def tune_catboost(
-    X, y, n_iter=10, cv=3, catboost_iterations=64, catboost_early_stopping_rounds=5
+    X, y, n_iter=10, cv=3, catboost_iterations=100, catboost_early_stopping_rounds=5
 ):
     # Define parameter distributions
     param_distributions = {
@@ -182,7 +182,7 @@ def tune_catboost(
     cv = min(len(X), 3)
 
     # Check if GPU is available
-    task_type = "GPU" if torch.cuda.is_available() and len(X)>cv else "CPU"
+    task_type = "GPU" if torch.cuda.is_available() and len(X) > cv else "CPU"
     print(f"CatBoost will use: {task_type}")
 
     eval_metric = "Logloss"
