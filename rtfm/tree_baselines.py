@@ -185,7 +185,16 @@ def tune_catboost(
     task_type = "GPU" if torch.cuda.is_available() and len(X) > cv else "CPU"
     print(f"CatBoost will use: {task_type}")
 
-    eval_metric = "Logloss"
+    n_classes = len(np.unique(y))
+    if n_classes == 2:
+        loss_function = "Logloss"
+        eval_metric = "Logloss"
+    elif n_classes > 2:
+        loss_function = "MultiClass"
+        eval_metric = "MultiClass"
+    else:
+        raise ValueError(f"got unexpected number of classes: {n_classes}")
+
     if len(X) > 1 and (all(y.value_counts() > cv)) and n_iter > 1:
         # Define the model
         model = CatBoostClassifier(
@@ -196,6 +205,7 @@ def tune_catboost(
             task_type=task_type,  # Use GPU if available
             devices="0",  # Use first available GPU
             eval_metric=eval_metric,
+            loss_function=loss_function,
         )
 
         # Create pools
@@ -223,6 +233,7 @@ def tune_catboost(
             task_type=task_type,  # Use GPU if available
             devices="0",  # Use first available GPU
             eval_metric=eval_metric,
+            loss_function=loss_function,
         )
         model = model.fit(X, y)
 
