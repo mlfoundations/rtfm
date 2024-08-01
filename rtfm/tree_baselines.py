@@ -182,7 +182,7 @@ def tune_catboost(
     cv = min(len(X), 3)
 
     # Check if GPU is available
-    task_type = "GPU" if torch.cuda.is_available() else "CPU"
+    task_type = "GPU" if torch.cuda.is_available() and len(X)>cv else "CPU"
     print(f"CatBoost will use: {task_type}")
 
     eval_metric = "Logloss"
