@@ -162,7 +162,7 @@ import torch  # for GPU detection
 
 
 def tune_catboost(
-    X, y, n_iter=10, cv=3, catboost_iterations=100, catboost_early_stopping_rounds=5
+    X, y, n_iter=10, cv=3, catboost_iterations=64, catboost_early_stopping_rounds=5
 ):
     # Define parameter distributions
     param_distributions = {
