@@ -155,11 +155,15 @@ class ColumnCaster(BaseEstimator, TransformerMixin):
         return X
 
 
+import numpy as np
+from catboost import CatBoostClassifier, Pool
+from sklearn.pipeline import Pipeline
+import torch  # for GPU detection
+
+
 def tune_catboost(X, y, n_iter=10, cv=3):
     # Define parameter distributions
     param_distributions = {
-        # Same tuning grid as https://arxiv.org/abs/2106.11959,
-        # see supplementary section F.4.
         "learning_rate": np.logspace(-3, 0),
         "depth": np.arange(3, 11),
         "bagging_temperature": np.logspace(-6, 0),
@@ -175,12 +179,18 @@ def tune_catboost(X, y, n_iter=10, cv=3):
 
     cv = min(len(X), 3)
 
+    # Check if GPU is available
+    task_type = "GPU" if torch.cuda.is_available() else "CPU"
+    print(f"CatBoost will use: {task_type}")
+
     if len(X) > 1 and (all(y.value_counts() > cv)) and n_iter > 1:
         # Define the model
         model = CatBoostClassifier(
-            iterations=500,  # we'll use early stopping, so this is the maximum number of iterations
+            iterations=500,
             random_state=42,
-            verbose=0,
+            verbose=1,
+            task_type=task_type,  # Use GPU if available
+            devices="0",  # Use first available GPU
         )
 
         # Create pools
@@ -190,25 +200,24 @@ def tune_catboost(X, y, n_iter=10, cv=3):
         grid_search_result = model.randomized_search(
             param_distributions,
             X=train_pool,
-            y=None,  # y is already in the train_pool
+            y=None,
             n_iter=n_iter,
             cv=cv,
-            refit=True,  # refit the model on the whole dataset after search
+            refit=True,
             shuffle=True,
             verbose=False,
             plot=False,
         )
     else:
         model = CatBoostClassifier(
-            iterations=500,  # we'll use early stopping, so this is the maximum number of iterations
+            iterations=500,
             random_state=42,
-            verbose=0,
+            verbose=1,
             cat_features=cat_features,
+            task_type=task_type,  # Use GPU if available
+            devices="0",  # Use first available GPU
         )
         model = model.fit(X, y)
-
-    # # Get the best model
-    # best_model = grid_search_result["params"]
 
     pipe = Pipeline([("caster", column_caster), ("catboost", model)])
 
