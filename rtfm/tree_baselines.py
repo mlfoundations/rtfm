@@ -212,7 +212,6 @@ def tune_catboost(
             shuffle=True,
             verbose=False,
             plot=False,
-            thread_count=-1,  # Use all available CPU cores
         )
     else:
         model = CatBoostClassifier(
