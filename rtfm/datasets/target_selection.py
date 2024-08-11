@@ -31,6 +31,7 @@ class T4TargetSelector(TargetSelector):
     """Random selection from candidates meeting a set of heuristic criteria."""
 
     data_args: DataArguments
+    log_level: str = "warning"
 
     def __call__(self, df: pd.DataFrame) -> Tuple[str, Sequence[str]]:
         # Iterate over the columns in the dataframe, and if it is a valid
@@ -46,7 +47,10 @@ class T4TargetSelector(TargetSelector):
                 )
 
                 if not is_valid_target_column(
-                    self.data_args, df[c], unique_values_serializable
+                    self.data_args,
+                    df[c],
+                    unique_values_serializable,
+                    log_level=self.log_level,
                 ):
                     continue
                 else:
@@ -91,21 +95,25 @@ class T4TargetSelector(TargetSelector):
 
 
 def is_valid_target_column(
-    data_args: DataArguments, ser: pd.Series, unique_values_serializable: Sequence[str]
+    data_args: DataArguments,
+    ser: pd.Series,
+    unique_values_serializable: Sequence[str],
+    log_level="warning",
 ) -> bool:
     """Check whether a target column is valid based on data_args."""
+    log_fn = eval(f"logging.{log_level}")
     if "Unnamed:" in ser.name:
-        logging.warning(f"excluding target candidate {ser.name}")
+        log_fn(f"excluding target candidate {ser.name}")
         return False
 
     if data_args.labels_drop_dates and is_date_column(ser):
-        logging.warning(
+        log_fn(
             f"excluding target candidate {ser.name} due to being of date type {ser.dtype}."
         )
         return False
 
     if ser.nunique() < data_args.labels_min_unique_values:
-        logging.warning(
+        log_fn(
             f"excluding target candidate {ser.name} due to "
             f"insufficient number of unique values ({ser.nunique()} < data_args.labels_min_unique_values)"
         )
@@ -118,9 +126,7 @@ def is_valid_target_column(
         # Allow numeric columns to have all unique values if labels_drop_numeric is False.
         and (not data_args.labels_drop_numeric and all_values_are_numeric)
     ):
-        logging.warning(
-            f"excluding target candidate {ser.name} due to only unique values"
-        )
+        log_fn(f"excluding target candidate {ser.name} due to only unique values")
         return False
 
     if (
@@ -129,15 +135,13 @@ def is_valid_target_column(
         # Allow numeric columns if they are binary {0,1}.
         and not set(unique_values_serializable) == {"0", "1"}
     ):
-        logging.warning(
-            f"excluding target candidate {ser.name} due to being of numeric type"
-        )
+        log_fn(f"excluding target candidate {ser.name} due to being of numeric type")
         return False
 
     if any(
         len(str(x)) > data_args.max_target_len_chars for x in unique_values_serializable
     ):
-        logging.warning(
+        log_fn(
             f"excluding target candidate {ser.name} due to values exceeding {data_args.max_target_len_chars} chars"
         )
         return False
