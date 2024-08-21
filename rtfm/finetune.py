@@ -281,7 +281,11 @@ def main(
         if fsdp_config.fsdp_activation_checkpointing:
             apply_fsdp_checkpointing(model)
 
-    elif not train_config.quantization and not train_config.enable_fsdp:
+    elif (
+        not train_config.quantization
+        and not train_config.use_peft
+        and not train_config.enable_fsdp
+    ):
         print(
             "[WARNING] applying activation checkpointing by default to non-fsdp model"
         )
