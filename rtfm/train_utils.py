@@ -20,7 +20,6 @@ from llama_recipes.model_checkpointing.checkpoint_handler import (
     fullstate_save_policy,
 )
 from llama_recipes.utils.memory_utils import MemoryTrace
-from rtfm.hf_utils import save_hf_model_and_tokenizer
 from safetensors import safe_open
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 from torch.distributed.fsdp import (
@@ -85,6 +84,33 @@ def save_state_dict_to_default_directory(
     return
 
 
+def save_optimizer_and_scheduler_unsharded(
+    model, optimizer, train_config: TrainConfig, rank: int, step: int, lr_scheduler
+):
+    if train_config.enable_fsdp and train_config.save_optimizer:
+        optim_state = FSDP.full_optim_state_dict(model, optimizer)
+
+    else:
+        optim_state = optimizer.state_dict()
+
+    # optimizer and scheduler saving
+    if train_config.save_optimizer and ((not train_config.enable_fsdp) or rank == 0):
+        assert (
+            optim_state is not None
+        ), f"expected optimizer state; could be unhandled case."
+        print(f"--> saving optimizer state...")
+        save_state_dict_to_default_directory(
+            optim_state, train_config, step, OPTIMIZER_STATE_PT
+        )
+
+        print(f"--> saving scheduler state...")
+        scheduler_state = lr_scheduler.state_dict()
+        save_state_dict_to_default_directory(
+            scheduler_state, train_config, step, SCHEDULER_STATE_PT
+        )
+    return
+
+
 def save_model_and_optimizer_unsharded(
     model,
     optimizer,
@@ -99,20 +125,13 @@ def save_model_and_optimizer_unsharded(
     save_dir = cfg.make_save_folder_name(step)
     os.makedirs(save_dir, exist_ok=True)
 
-    optim_state = None
-
     # FSDP model saving
-
     if cfg.enable_fsdp:
         with FSDP.state_dict_type(
             model, StateDictType.FULL_STATE_DICT, fullstate_save_policy
         ):
             cpu_state = model.state_dict()
-
             print(f"saving process: rank {rank}  done w model state_dict\n")
-
-    if cfg.enable_fsdp and cfg.save_optimizer:
-        optim_state = FSDP.full_optim_state_dict(model, optimizer)
 
     if cfg.enable_fsdp and rank == 0:
         print(f"--> saving FSDP model on rank 0...")
@@ -120,23 +139,13 @@ def save_model_and_optimizer_unsharded(
 
     # non-FSDP model saving
     elif not cfg.enable_fsdp:
+        print("non-FSDP training run; saving checkpoint in HF format...")
         model.save_pretrained(save_dir)
         print(f"HF model checkpoint saved for step {step} at {save_dir}\n")
-        if cfg.save_optimizer:
-            optim_state = optimizer.state_dict()
 
-    # optimizer and scheduler saving
-    if cfg.save_optimizer and ((not cfg.enable_fsdp) or rank == 0):
-        assert (
-            optim_state is not None
-        ), f"expected optimizer state; could be unhandled case."
-        print(f"--> saving optimizer state...")
-        save_state_dict_to_default_directory(optim_state, cfg, step, OPTIMIZER_STATE_PT)
-
-        print(f"--> saving scheduler state...")
-        scheduler_state = lr_scheduler.state_dict()
-        save_state_dict_to_default_directory(
-            scheduler_state, cfg, step, SCHEDULER_STATE_PT
+    if cfg.save_optimizer:
+        save_optimizer_and_scheduler_unsharded(
+            model, optimizer, cfg, rank, step, lr_scheduler
         )
 
 
@@ -160,10 +169,18 @@ def save_train_state(
     )
     if train_config.enable_fsdp:
         dist.barrier()
+
     if train_config.use_peft:
-        model.save_pretrained(train_config.output_dir)
+        # create save path
+        save_dir = train_config.make_save_folder_name(step)
+        os.makedirs(save_dir, exist_ok=True)
+        model.save_pretrained(save_dir)
+
         if is_main_process:
-            print(f"PEFT modules are saved in {train_config.output_dir} directory")
+            print(f"PEFT modules are saved in {save_dir} directory")
+        save_optimizer_and_scheduler_unsharded(
+            model, optimizer, train_config, rank, step, lr_scheduler
+        )
 
     else:
         if not train_config.use_peft and not train_config.enable_fsdp:
@@ -375,11 +392,6 @@ def train(
         checkpoint_end_time = save_train_state(
             train_config, model, optimizer, lr_scheduler, rank, fsdp_config, step
         )
-        # save in hugging face format
-        logging.warning(
-            f"saving model in hugging face format to {train_config.output_dir}"
-        )
-        save_hf_model_and_tokenizer(model, tokenizer, train_config)
 
     if train_config.run_validation:
         evaluate(
