@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 from tabliblib.summarizers import SingleColumnSummarizer
 
-from rtfm.configs import TargetSelectorConfig
+from rtfm.configs import TargetConfig
 from rtfm.datasets.target_selection import T4TargetSelector, ModelBasedTargetSelector
 
 # Set the random seed as some tests rely on random selection
@@ -23,7 +23,7 @@ np.random.seed(42)
 
 class TestT4TargetSelector(unittest.TestCase):
     def setUp(self):
-        self.config = TargetSelectorConfig(target_selector_cls="T4TargetSelector")
+        self.config = TargetConfig(target_selector_cls="T4TargetSelector")
         self.target_selector = T4TargetSelector(self.config)
 
     def test_t4_settings(self, num_trials=100):
@@ -69,7 +69,7 @@ class TestT4TargetSelector(unittest.TestCase):
     def test_allow_unique_columns(self, num_trials=100):
         """Test that labels_require_nonunique=False allows unique-valued columns."""
         _target_selector = T4TargetSelector(
-            config=TargetSelectorConfig(
+            config=TargetConfig(
                 target_selector_cls="T4TargetSelector", labels_require_nonunique=False
             )
         )
@@ -91,7 +91,7 @@ class TestT4TargetSelector(unittest.TestCase):
     def test_allow_datetime_columns(self, num_trials=100):
         """Test that labels_drop_dates=False allows DateTime columns."""
         _target_selector = T4TargetSelector(
-            config=TargetSelectorConfig(
+            config=TargetConfig(
                 target_selector_cls="T4TargetSelector", labels_drop_dates=False
             )
         )
@@ -116,7 +116,7 @@ class TestModelBasedTargetSelector(unittest.TestCase):
         self,
     ):
         """Simple integration test of model-based selector."""
-        config = TargetSelectorConfig(target_selector_cls="ModelBasedTargetSelector")
+        config = TargetConfig(target_selector_cls="ModelBasedTargetSelector")
         selector = ModelBasedTargetSelector(config=config)
         assert isinstance(selector.clf, XGBClassifier)
 
@@ -134,7 +134,7 @@ class TestModelBasedTargetSelector(unittest.TestCase):
         self,
     ):
         """Check that model-based selector with top-k chooses all k columns."""
-        config = TargetSelectorConfig(
+        config = TargetConfig(
             target_selector_cls="ModelBasedTargetSelector",
             selection_method="topk",
             k=2,
@@ -160,7 +160,7 @@ class TestModelBasedTargetSelector(unittest.TestCase):
         self,
     ):
         """Check that model-based selector with temperature chooses all columns."""
-        config = TargetSelectorConfig(
+        config = TargetConfig(
             target_selector_cls="ModelBasedTargetSelector",
             selection_method="temperature",
         )

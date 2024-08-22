@@ -105,11 +105,16 @@ class TokenizerConfig:
 
 
 @dataclass
-class TargetSelectorConfig:
-    """Configuration class for target selection-related parameters.
+class TargetConfig:
+    """Configuration class for target- and target selection-related parameters.
 
+    This class contains parameters related both to general targets (i.e. the
+    max allowed length, etc.), and target selection.
     Target selection refers to the process whereby a prediction target column
     is selected from a DataFrame with no prespecified prediction target.
+     Note that "target selection" only occurrs when there is not a prespecified target
+     in a dataset (typically, this is the case during training, but is NOT the case
+     during evaluation).
     """
 
     target_selector_cls: Literal["T4TargetSelector", "ModelBasedTargetSelector"]

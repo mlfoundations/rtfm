@@ -8,7 +8,7 @@ from typing import Sequence, Tuple, Union, Callable, Any, Literal, Callable
 from xgboost import XGBClassifier
 import numpy as np
 import pandas as pd
-from rtfm.configs import TargetSelectorConfig
+from rtfm.configs import TargetConfig
 from rtfm.datasets.data_utils import is_date_column, make_object_json_serializable
 from tabliblib.summarizers import SingleColumnSummarizer
 
@@ -22,7 +22,7 @@ def is_numeric_series(vals: Union[pd.Series, Sequence[str]]) -> bool:
 
 @dataclass
 class TargetSelector(ABC):
-    config: TargetSelectorConfig
+    config: TargetConfig
 
     @abstractmethod
     def __call__(self, df: pd.DataFrame) -> Tuple[str, Sequence[str]]:
@@ -101,7 +101,7 @@ class T4TargetSelector(TargetSelector):
 
 
 def is_valid_target_column(
-    config: TargetSelectorConfig,
+    config: TargetConfig,
     ser: pd.Series,
     unique_values_serializable: Sequence[str],
     log_level="warning",
@@ -241,6 +241,6 @@ class ModelBasedTargetSelector(TargetSelector):
         return selected_colname, df[selected_colname].unique().tolist()
 
 
-def get_target_selector(config: TargetSelectorConfig):
+def get_target_selector(config: TargetConfig):
     target_selector = eval(config.target_selector_cls)(config=config)
     return target_selector
