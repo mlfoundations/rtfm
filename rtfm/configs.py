@@ -123,7 +123,7 @@ class TargetConfig:
     model_path: str = os.path.join(
         os.path.dirname(__file__),
         "models",
-        "xgb_target_quality_scorer_c56e00b3-e1df-4d36-a348-7b7006deba3b.json",
+        "xgb_target_quality_scorer_f57215a6-d4f1-41b7-a723-503501a092e0.json",
     )
     selection_method: Literal["max", "topk", "temperature"] = "max"
     k: int = 3
