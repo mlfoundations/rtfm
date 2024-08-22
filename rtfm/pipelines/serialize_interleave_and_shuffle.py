@@ -12,25 +12,21 @@ python -m rtfm.pipelines.serialize_interleave_and_shuffle \
     --chunk_size 256 \
     --max_tables 100_000
 """
-from functools import partial
 import glob
 import json
 import logging
-from multiprocessing import Pool
 import os
 import random
 import time
+from functools import partial
+from multiprocessing import Pool
 from typing import Sequence
 
 import pandas as pd
 import ray
-from sklearn.model_selection import train_test_split
-from transformers import HfArgumentParser
-from tqdm import tqdm
 import webdataset as wds
-
 from rtfm.arguments import DataArguments
-from rtfm.configs import SerializerConfig
+from rtfm.configs import SerializerConfig, TargetConfig
 from rtfm.data import (
     build_formatted_df_from_file,
     example_map_fn,
@@ -38,12 +34,16 @@ from rtfm.data import (
 from rtfm.datasets.target_selection import NoTargetCandidatesError
 from rtfm.pipelines.pipeline_utils import Resharder, PipelineConfig
 from rtfm.serialization.serializers import get_serializer
+from sklearn.model_selection import train_test_split
+from tqdm import tqdm
+from transformers import HfArgumentParser
 
 
 def process_file(
     row,
     data_args: DataArguments,
     serializer_config: SerializerConfig,
+    target_config: TargetConfig,
     model_max_len_tokens=4096,
     appx_chars_per_token=3.5,
 ):
@@ -53,7 +53,7 @@ def process_file(
     try:
         df = build_formatted_df_from_file(
             filename,
-            data_args=data_args,
+            target_config=target_config,
         )
     except NoTargetCandidatesError:
         return {"item": "Failed"}
@@ -196,6 +196,7 @@ def main(
     serializer_config: SerializerConfig,
     data_args: DataArguments,
     pipeline_config: PipelineConfig,
+    target_config: TargetConfig,
 ):
     data_args.use_config = False
     data_args.feature_name_handling = "none"
@@ -244,6 +245,7 @@ def main(
     fn_kwargs = {
         "data_args": data_args,
         "serializer_config": serializer_config,
+        "target_config": target_config,
     }
     test_ds = test_ds.flat_map(process_file, fn_kwargs=fn_kwargs).repartition(
         parallelism * pipeline_config.output_shard_factor
@@ -285,10 +287,13 @@ def main(
 
 
 if __name__ == "__main__":
-    parser = HfArgumentParser((SerializerConfig, DataArguments, PipelineConfig))
+    parser = HfArgumentParser(
+        (SerializerConfig, DataArguments, PipelineConfig, TargetConfig)
+    )
     (
         serializer_config,
         data_args,
         pipeline_config,
+        target_config,
     ) = parser.parse_args_into_dataclasses()
-    main(serializer_config, data_args, pipeline_config)
+    main(serializer_config, data_args, pipeline_config, target_config)

@@ -17,7 +17,7 @@ import webdataset as wds
 import datasets
 from datasets import load_dataset, IterableDataset, Dataset
 from rtfm.arguments import DataArguments
-from rtfm.configs import TrainConfig
+from rtfm.configs import TrainConfig, TargetConfig
 from rtfm.datasets import get_task_dataset
 from rtfm.datasets.data_utils import (
     make_object_json_serializable,
@@ -29,7 +29,7 @@ from rtfm.datasets.tableshift_utils import (
     get_dataset_info,
 )
 from rtfm.datasets.target_selection import (
-    T4TargetSelector,
+    get_target_selector,
     is_numeric,
     NoTargetCandidatesError,
 )
@@ -186,13 +186,12 @@ class DatasetTypeError(TypeError):
     pass
 
 
-def build_formatted_df_from_file(file, data_args: DataArguments) -> pd.DataFrame:
+def build_formatted_df_from_file(file, target_config: TargetConfig) -> pd.DataFrame:
     """Build a formatted DataFrame.
 
     The result of this function has columns 'data' and 'info', which are used for
     downstream processing.
     """
-    assert not data_args.use_metafeatures
 
     # Read the data
     if file.endswith(".csv"):
@@ -202,7 +201,7 @@ def build_formatted_df_from_file(file, data_args: DataArguments) -> pd.DataFrame
     else:
         raise ValueError(f"unknown file format: {file}")
 
-    target_selector = T4TargetSelector(data_args)
+    target_selector = get_target_selector(target_config)
     target, target_column_unique_values = target_selector(df)
 
     if all(is_numeric(x) for x in target_column_unique_values):
@@ -225,11 +224,11 @@ def build_formatted_df_from_file(file, data_args: DataArguments) -> pd.DataFrame
     for _, row in df.iterrows():
         # If the number of choices for the target column exceeds data_args.max_target_choices,
         # take a uniform sample. Otherwise give the full list of choices for the column.
-        if len(target_column_unique_values) > data_args.max_target_choices:
+        if len(target_column_unique_values) > target_config.max_target_choices:
             target_value = make_object_json_serializable(row[target])
             target_choices = [target_value] + np.random.choice(
                 [x for x in target_column_unique_values if x != target_value],
-                data_args.max_target_choices - 1,
+                target_config.max_target_choices - 1,
                 replace=False,
             ).tolist()
         else:
