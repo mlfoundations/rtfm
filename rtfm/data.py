@@ -7,14 +7,13 @@ from dataclasses import dataclass
 from functools import partial
 from typing import Dict, Sequence, List, Union, Optional, Any, Tuple
 
+import datasets
 import numpy as np
 import pandas as pd
 import scipy
 import torch
 import transformers
 import webdataset as wds
-
-import datasets
 from datasets import load_dataset, IterableDataset, Dataset
 from rtfm.arguments import DataArguments
 from rtfm.configs import TrainConfig, TargetConfig
@@ -33,8 +32,8 @@ from rtfm.datasets.target_selection import (
     is_numeric,
     NoTargetCandidatesError,
 )
-from rtfm.serialization.serializers import RowSerializer
 from rtfm.serialization.serialization_utils import discretize_continuous_column
+from rtfm.serialization.serializers import RowSerializer
 from rtfm.special_tokens import IGNORE_INDEX, QA_SEP_TOKEN, EOC_TOKEN
 from rtfm.task_config import (
     get_tlm_config,
@@ -231,8 +230,7 @@ def build_formatted_df_from_file(file, target_config: TargetConfig) -> pd.DataFr
                 target_config.max_target_choices - 1,
                 replace=False,
             ).tolist()
-        else:
-            target_choices = target_column_unique_values.tolist()
+
         row_info = {
             "target": target,
             "target_choices": target_choices,
