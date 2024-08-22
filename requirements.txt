@@ -49,3 +49,4 @@ tabpfn
 gradio
 setuptools==69.5.1
 catboost==1.1.1
+nltk
