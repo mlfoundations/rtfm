@@ -236,6 +236,7 @@ def build_formatted_df_from_file(file, target_config: TargetConfig) -> pd.DataFr
             "target_choices": target_choices,
             "task": file,
         }
+
         try:
             info.append(json.dumps(row_info))
         except TypeError as te:
