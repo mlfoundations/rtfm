@@ -57,41 +57,6 @@ class DataArguments:
             "If sample packing is set to False, this argument has no effect."
         },
     )
-    labels_require_nonunique: bool = field(
-        default=True,
-        metadata={
-            "help": "If True, candidate label columns are excluded if they are unique for every element."
-            "This excludes fields such as UIDs or other identifiers that do not define groups in the data."
-        },
-    )
-    labels_min_unique_values: int = field(
-        default=2,
-        metadata={
-            "help": "Minimum number of unique values required for a candidate label column."
-            "Columns with fewer than this number of unique values will not be prediction targets.."
-        },
-    )
-    labels_drop_numeric: bool = field(
-        default=False,
-        metadata={
-            "help": "If True, candidate label columns are excluded if all values are numeric."
-        },
-    )
-    labels_p_numeric: float = field(
-        default=0.1,
-        metadata={
-            "help": "Probability of selecting a numeric column, when both numeric and categorical columns are present."
-            "This trades off the number of numeric columns vs. the number of nonnumeric columns in the data."
-        },
-    )
-    labels_drop_dates: bool = field(
-        default=True,
-        metadata={
-            "help": "If True, candidate label columns are excluded if they contain a pandas date dtype."
-            "Note that string values are NOT parsed; instead we rely strictly on the data types as parsed from Arrow"
-            "(this means that some dates might evade this filtering strategy without further processing)."
-        },
-    )
     cache_dir: str = field(
         default="tmp", metadata={"help": "Cache directory for data."}
     )
@@ -187,22 +152,6 @@ class DataArguments:
         metadata={
             "help": "Set to True if you expect a TaskConfig to exist for this task."
             "Set to False otherwise (i.e. if loading a task from raw files)."
-        },
-    )
-    max_target_choices: int = field(
-        default=8,
-        metadata={
-            "help": "Only used when from_files is True. This defines the"
-            "maximum number of target classes to be included in the serialized example."
-            "Target labels are sampled uniformly at random."
-        },
-    )
-    max_target_len_chars: int = field(
-        default=256,
-        metadata={
-            "help": "Only used when from_files is True. This defines the"
-            "maximum number of characters allows in a target column. If any values in the"
-            "column have more than this number of characters, it cannot be used as a target."
         },
     )
 

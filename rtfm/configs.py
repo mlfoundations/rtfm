@@ -1,9 +1,10 @@
 import os.path
 from dataclasses import dataclass, field
-from typing import Optional, List, Literal, Sequence, Any
+from typing import Optional, List, Literal, Sequence, Any, Callable
 
 from torch.distributed.fsdp import ShardingStrategy
 from torch.distributed.fsdp.fully_sharded_data_parallel import StateDictType
+import pandas as pd
 
 
 @dataclass
@@ -101,6 +102,77 @@ class TokenizerConfig:
     # "Only used if add_serializer_tokens=True (ignored otherwise)"
     serializer_tokens_embed_fn: Literal["smart", "vipi", "hf"] = "smart"
     use_fast_tokenizer: bool = True
+
+
+@dataclass
+class TargetSelectorConfig:
+    """Configuration class for target selection-related parameters.
+
+    Target selection refers to the process whereby a prediction target column
+    is selected from a DataFrame with no prespecified prediction target.
+    """
+
+    target_selector_cls: Literal["T4TargetSelector", "ModelBasedTargetSelector"]
+
+    # Configuration options for ModelBasedTargetSelector
+    model_path: str = os.path.join(
+        os.path.dirname(__file__),
+        "models",
+        "xgb_target_quality_scorer_c56e00b3-e1df-4d36-a348-7b7006deba3b.json",
+    )
+    selection_method: Literal["max", "topk", "temperature"] = "max"
+    k: int = 3
+    temperature: float = 1.0
+
+    # Parameters from the old DataArguments class implementation
+    labels_require_nonunique: bool = True
+    #     metadata={
+    #         "help": "If True, candidate label columns are excluded if they are unique for every element."
+    #                 "This excludes fields such as UIDs or other identifiers that do not define groups in the data."
+    #     },
+    # )
+    labels_min_unique_values: int = 2
+    #     metadata={
+    #         "help": "Minimum number of unique values required for a candidate label column."
+    #                 "Columns with fewer than this number of unique values will not be prediction targets.."
+    #     },
+    # )
+    labels_drop_numeric: bool = False
+    #     metadata={
+    #         "help": "If True, candidate label columns are excluded if all values are numeric."
+    #     },
+    # )
+    labels_p_numeric: float = 0.1
+    #     metadata={
+    #         "help": "Probability of selecting a numeric column, when both numeric and categorical columns are present."
+    #                 "This trades off the number of numeric columns vs. the number of nonnumeric columns in the data."
+    #     },
+    # )
+    labels_drop_dates: bool = True
+    #     metadata={
+    #         "help": "If True, candidate label columns are excluded if they contain a pandas date dtype."
+    #                 "Note that string values are NOT parsed; instead we rely strictly on the data types as parsed from Arrow"
+    #                 "(this means that some dates might evade this filtering strategy without further processing)."
+    #     },
+    # )
+    max_target_choices: int = 8
+    # field(
+    #     default=8,
+    #     metadata={
+    #         "help": "Only used when from_files is True. This defines the"
+    #         "maximum number of target classes to be included in the serialized example."
+    #         "Target labels are sampled uniformly at random."
+    #     },
+    # )
+    max_target_len_chars: int = 256
+    # field(
+    #     default=256,
+    #     metadata={
+    #         "help": "Only used when from_files is True. This defines the"
+    #         "maximum number of characters allows in a target column. If any values in the"
+    #         "column have more than this number of characters, it cannot be used as a target."
+    #     },
+    # )
 
 
 @dataclass

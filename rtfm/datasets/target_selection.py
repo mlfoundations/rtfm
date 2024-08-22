@@ -1,14 +1,16 @@
+from collections import defaultdict
+import logging
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Sequence, Tuple, Union, Callable, Any, Literal
-import logging
+from typing import Sequence, Tuple, Union, Callable, Any, Literal, Callable
 
+from xgboost import XGBClassifier
 import numpy as np
 import pandas as pd
-
-from rtfm.arguments import DataArguments
+from rtfm.configs import TargetSelectorConfig
 from rtfm.datasets.data_utils import is_date_column, make_object_json_serializable
+from tabliblib.summarizers import SingleColumnSummarizer
 
 # Dummy logging statement to make sure linter doesn't remove logging module import.
 logging.info("")
@@ -20,7 +22,7 @@ def is_numeric_series(vals: Union[pd.Series, Sequence[str]]) -> bool:
 
 @dataclass
 class TargetSelector(ABC):
-    data_args: DataArguments
+    config: TargetSelectorConfig
 
     @abstractmethod
     def __call__(self, df: pd.DataFrame) -> Tuple[str, Sequence[str]]:
@@ -51,7 +53,7 @@ class T4TargetSelector(TargetSelector):
                 )
 
                 if not is_valid_target_column(
-                    self.data_args,
+                    self.config,
                     df[c],
                     unique_values_serializable,
                     log_level=log_level,
@@ -77,7 +79,7 @@ class T4TargetSelector(TargetSelector):
         )
         nonnumeric_count = len(target_candidates) - numeric_count
 
-        p = self.data_args.labels_p_numeric
+        p = self.config.labels_p_numeric
         target_probs = (
             [
                 p / numeric_count
@@ -99,7 +101,7 @@ class T4TargetSelector(TargetSelector):
 
 
 def is_valid_target_column(
-    data_args: DataArguments,
+    config: TargetSelectorConfig,
     ser: pd.Series,
     unique_values_serializable: Sequence[str],
     log_level="warning",
@@ -110,13 +112,13 @@ def is_valid_target_column(
         log_fn(f"excluding target candidate {ser.name}")
         return False
 
-    if data_args.labels_drop_dates and is_date_column(ser):
+    if config.labels_drop_dates and is_date_column(ser):
         log_fn(
             f"excluding target candidate {ser.name} due to being of date type {ser.dtype}."
         )
         return False
 
-    if ser.nunique() < data_args.labels_min_unique_values:
+    if ser.nunique() < config.labels_min_unique_values:
         log_fn(
             f"excluding target candidate {ser.name} due to "
             f"insufficient number of unique values ({ser.nunique()} < data_args.labels_min_unique_values)"
@@ -125,16 +127,16 @@ def is_valid_target_column(
 
     all_values_are_numeric = is_numeric_series(unique_values_serializable)
     if (
-        data_args.labels_require_nonunique
+        config.labels_require_nonunique
         and ser.nunique() == len(ser)
         # Allow numeric columns to have all unique values if labels_drop_numeric is False.
-        and (not data_args.labels_drop_numeric and all_values_are_numeric)
+        and (not config.labels_drop_numeric and all_values_are_numeric)
     ):
         log_fn(f"excluding target candidate {ser.name} due to only unique values")
         return False
 
     if (
-        data_args.labels_drop_numeric
+        config.labels_drop_numeric
         and all_values_are_numeric
         # Allow numeric columns if they are binary {0,1}.
         and not set(unique_values_serializable) == {"0", "1"}
@@ -143,10 +145,10 @@ def is_valid_target_column(
         return False
 
     if any(
-        len(str(x)) > data_args.max_target_len_chars for x in unique_values_serializable
+        len(str(x)) > config.max_target_len_chars for x in unique_values_serializable
     ):
         log_fn(
-            f"excluding target candidate {ser.name} due to values exceeding {data_args.max_target_len_chars} chars"
+            f"excluding target candidate {ser.name} due to values exceeding {config.max_target_len_chars} chars"
         )
         return False
     return True
@@ -167,11 +169,23 @@ class NoTargetCandidatesError(ValueError):
 class ModelBasedTargetSelector(TargetSelector):
     """Target selector that uses a model to select candidate columns."""
 
-    feature_extraction_fn: Callable[[pd.DataFrame], Any]
-    classifier: Any
-    selection_method: Literal["max", "topk", "temperature"] = "max"
-    k: int = 3
-    temperature: float = 1.0
+    clf = None
+    summarizer: SingleColumnSummarizer = SingleColumnSummarizer(
+        agg_fns={}, agg_quantiles=[], include_table_summary_metrics=False
+    )
+
+    def __post_init__(self):
+        logging.warning(
+            f"loading xgboost model from {self.config.model_path};"
+            "if a segfault occurs try importing xgboost as early as possible"
+            "in your code."
+        )
+        clf = XGBClassifier()
+        clf.load_model(self.config.model_path)
+        self.clf = clf
+
+    def feature_extraction_fn(self, series: pd.Series) -> pd.Series:
+        return self.summarizer(series)
 
     def __call__(
         self, df: pd.DataFrame, log_level: str = "warning"
@@ -180,13 +194,12 @@ class ModelBasedTargetSelector(TargetSelector):
 
         This method returns the name of the target column, and a Sequence of
         its unique values."""
-        from collections import defaultdict
 
         column_scores = defaultdict(float)
         for colname in df.columns:
             features = self.feature_extraction_fn(df[colname])
-            features = features[self.classifier.get_booster().feature_names]
-            score = self.classifier.predict_proba([features]).flatten()
+            features = features[self.clf.get_booster().feature_names]
+            score = self.clf.predict_proba([features]).flatten()
             if len(score) > 1:
                 assert (
                     len(score) == 2
@@ -198,11 +211,11 @@ class ModelBasedTargetSelector(TargetSelector):
             column_scores, orient="index", columns=["score"]
         )
 
-        if self.selection_method == "max":
+        if self.config.selection_method == "max":
             selected_colname = scores_df.idxmax().item()
 
-        elif self.selection_method == "topk":
-            scores_topk = scores_df.score.nlargest(self.k)
+        elif self.config.selection_method == "topk":
+            scores_topk = scores_df.score.nlargest(self.config.k)
 
             # Convert scores to np.float64 first to ensure probs
             # sum to exactly 1; otherwise it is possible to get
@@ -216,13 +229,18 @@ class ModelBasedTargetSelector(TargetSelector):
                 scores_topk.index, p=scores_topk_normalized
             )
 
-        elif self.selection_method == "temperature":
+        elif self.config.selection_method == "temperature":
             scores = scores_df.score.values.astype(np.float64)
-            const = (scores ** (1 / self.temperature)).sum()
-            scores = scores ** (1 / self.temperature) / const
+            const = (scores ** (1 / self.config.temperature)).sum()
+            scores = scores ** (1 / self.config.temperature) / const
             selected_colname = np.random.choice(scores_df.index, p=scores)
 
         else:
             raise NotImplementedError
 
         return selected_colname, df[selected_colname].unique().tolist()
+
+
+def get_target_selector(config: TargetSelectorConfig):
+    target_selector = eval(config.target_selector_cls)(config=config)
+    return target_selector
