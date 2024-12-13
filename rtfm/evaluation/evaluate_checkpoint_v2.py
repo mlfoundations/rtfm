@@ -14,15 +14,19 @@ from rtfm.arguments import (
     DataArguments,
 )
 from rtfm.configs import TrainConfig, TokenizerConfig, SerializerConfig
+from rtfm.datasets.data_utils import cast_columns_to_json_serializable, make_object_json_serializable
 from rtfm.evaluation.evaluation_utils import (
     prepare_eval_kwargs,
     prepare_eval_datasets,
 )
+from rtfm.inference_utils import RandomShotSelector
+from rtfm.inference_utils import InferenceModel
 from rtfm.serialization.serializers import get_serializer
 from rtfm.task_config import get_tlm_config
 from rtfm.tokenization.text import sanity_check_tokenizer, prepare_tokenizer
 from rtfm.train_utils import load_model_from_checkpoint
 from rtfm.utils import get_task_names_list, initialize_dir, get_latest_checkpoint
+from rtfm.evaluation.evaluators import OpenVocabularyEvaluator
 
 LOG_LEVEL = logging.DEBUG
 
@@ -52,6 +56,7 @@ def main(
     eval_task_file: Optional[str] = None,
     use_fast_kernels: bool = False,
     overwrite: bool = False,
+    random_state:int=42,
 ):
     if os.path.exists(outfile) and not overwrite:
         logging.warning(f"file {outfile} already exists; skipping evaluation.")
@@ -125,10 +130,6 @@ def main(
         )
         print("#" * 50)
 
-    from rtfm.evaluation.evaluators import OpenVocabularyEvaluator
-    from rtfm.inference_utils import RandomShotSelector
-    from rtfm.inference_utils import InferenceModel
-
     inference_model = InferenceModel(
         model=model, tokenizer=tokenizer, serializer=serializer
     )
@@ -154,6 +155,14 @@ def main(
         )
         # By default fetch the entire dataset.
         df = tabular_dataset._df
+
+        df = df.sample(frac=1, random_state=random_state)
+
+        if data_args.shuffle_table_features:
+            df = df.sample(frac=1, axis=1, random_state=random_state)
+
+        df = cast_columns_to_json_serializable(df)
+        df[tabular_dataset.target] = make_object_json_serializable(df[tabular_dataset.target])
 
         metrics = evaluator.evaluate(
             inference_model=inference_model,
